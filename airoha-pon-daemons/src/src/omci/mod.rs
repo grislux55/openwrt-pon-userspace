@@ -17,8 +17,9 @@ mod schema;
 mod security;
 
 use std::collections::VecDeque;
+use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use self::backend::DataPathBackend;
 use self::control::{start_server, StatusHub};
@@ -68,10 +69,19 @@ fn cache_insert(cache: &mut VecDeque<CachedResponse>, frame: &[u8], response: &R
 }
 
 pub fn run_agent(
+    line: &str,
     interface: &str,
     mut identity: IdentityConfig,
     control_socket: &Path,
+    tr069_snapshot_path: &Path,
 ) -> io::Result<()> {
+    struct SnapshotCleanup(PathBuf);
+    impl Drop for SnapshotCleanup {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.0);
+        }
+    }
+
     let loid_configured = !identity.loid.is_empty();
     let omcc_version = identity.omcc_version;
     let disable_enhanced_security = identity.disable_enhanced_security;
@@ -79,15 +89,23 @@ pub fn run_agent(
     if let Some(serial) = backend.active_serial_number()? {
         identity.serial_number = serial.to_vec();
     }
-    let mut mib = Mib::from_identity(&identity);
+    let host_mac = crate::runtime::parent_interface_mac(interface).ok();
+    let mut mib = Mib::from_identity_with_mac(&identity, host_mac);
     let socket = PacketSocket::open(interface)?;
-    let status = StatusHub::new(interface, loid_configured);
+    let _snapshot_cleanup = SnapshotCleanup(tr069_snapshot_path.to_owned());
+    let status = StatusHub::new(
+        line,
+        interface,
+        loid_configured,
+        Some(tr069_snapshot_path.to_owned()),
+    );
     let initial_provisioning = mib.provisioning_snapshot();
     backend.reconcile(&initial_provisioning);
     status.record_provisioning(
         initial_provisioning,
         mib.data_path_graph(),
         backend.status(),
+        mib.tr069_snapshot(),
     );
     let _control_server = start_server(control_socket, status.clone())?;
     let mut receive_buffer = [0u8; RECEIVE_BUFFER_LEN];
@@ -114,6 +132,7 @@ pub fn run_agent(
                         provisioning,
                         mib.data_path_graph(),
                         backend.status(),
+                        mib.tr069_snapshot(),
                     );
                     continue;
                 }
@@ -186,7 +205,12 @@ pub fn run_agent(
                 let attribute_value_changes = mib.take_attribute_value_changes();
                 let provisioning = mib.provisioning_snapshot();
                 backend.reconcile(&provisioning);
-                status.record_provisioning(provisioning, mib.data_path_graph(), backend.status());
+                status.record_provisioning(
+                    provisioning,
+                    mib.data_path_graph(),
+                    backend.status(),
+                    mib.tr069_snapshot(),
+                );
                 cache_insert(&mut cache, received.bytes, &response);
                 (response, false, attribute_value_changes)
             }

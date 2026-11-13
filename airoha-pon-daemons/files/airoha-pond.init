@@ -65,4 +65,5 @@ stop_service() {
 	config_foreach stop_control_device omci
 	config_foreach stop_control_device oam
 	rm -f /var/run/airoha-pond.*.sock
+	rm -f /tmp/airoha-pond-tr069.*.json
 }

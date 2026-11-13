@@ -71,3 +71,94 @@ pub struct DataPathGraph {
     pub candidates: Vec<DataPathCandidate>,
     pub entities: Vec<DataPathEntity>,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum IpHostFamily {
+    Ipv4,
+    Ipv6,
+    Unknown,
+}
+
+impl IpHostFamily {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ipv4 => "ipv4",
+            Self::Ipv6 => "ipv6",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Ipv4HostSnapshot {
+    pub entity_id: u16,
+    pub mac_address: String,
+    pub ip_options: u8,
+    pub ip_address: String,
+    pub mask: String,
+    pub gateway: String,
+    pub primary_dns: String,
+    pub secondary_dns: String,
+    pub current_address: String,
+    pub current_mask: String,
+    pub current_gateway: String,
+    pub current_primary_dns: String,
+    pub current_secondary_dns: String,
+    pub domain_name: String,
+    pub host_name: String,
+    pub relay_tag_mode: u16,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Ipv6HostSnapshot {
+    pub entity_id: u16,
+    pub mac_address: String,
+    pub ip_options: u8,
+    pub ipv6_address: String,
+    pub prefix_length: u8,
+    pub gateway: String,
+    pub primary_dns: String,
+    pub secondary_dns: String,
+    pub current_addresses: Vec<String>,
+    pub current_gateway: String,
+    pub current_primary_dns: String,
+    pub current_secondary_dns: String,
+    pub domain_name: String,
+    pub host_name: String,
+    pub relay_tag_mode: u16,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TcpUdpConfigSnapshot {
+    pub entity_id: u16,
+    pub port: u16,
+    pub protocol: u8,
+    pub tos_diffserv: u8,
+    pub ip_host_pointer: u16,
+    pub ip_host_family: IpHostFamily,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Tr069ServerSnapshot {
+    pub entity_id: u16,
+    pub admin_state: bool,
+    pub acs_url: String,
+    pub associated_tag: u16,
+    pub tcp_udp_pointer: Option<u16>,
+    pub ip_host_pointer: Option<u16>,
+    pub ip_host_family: IpHostFamily,
+    pub auth_method: u8,
+    pub acs_username: String,
+    pub acs_password: String,
+    pub acs_username_present: bool,
+    pub acs_password_present: bool,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Tr069ProvisioningSnapshot {
+    pub management_vlan: Option<u16>,
+    pub ipv4_hosts: Vec<Ipv4HostSnapshot>,
+    pub ipv6_hosts: Vec<Ipv6HostSnapshot>,
+    pub tcp_udp_configs: Vec<TcpUdpConfigSnapshot>,
+    pub tr069_servers: Vec<Tr069ServerSnapshot>,
+}

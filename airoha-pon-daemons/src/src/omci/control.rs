@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 use std::collections::VecDeque;
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::io::{self, BufRead, BufReader, Write};
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::os::unix::net::UnixStream;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::backend::BackendStatus;
 use super::protocol::Request;
-use super::provisioning::{DataPathGraph, ProvisioningSnapshot};
+use super::provisioning::{DataPathGraph, ProvisioningSnapshot, Tr069ProvisioningSnapshot};
 
 const CONTROL_PROTOCOL_VERSION: u8 = 1;
 const EVENT_CAPACITY: usize = 256;
@@ -35,6 +36,7 @@ struct Event {
 
 #[derive(Debug)]
 struct Inner {
+    line: String,
     interface: String,
     loid_configured: bool,
     rx_messages: u64,
@@ -45,6 +47,10 @@ struct Inner {
     provisioning: ProvisioningSnapshot,
     data_path_graph: DataPathGraph,
     backend: BackendStatus,
+    tr069: Tr069ProvisioningSnapshot,
+    tr069_updated_at_ms: u128,
+    tr069_initialized: bool,
+    tr069_snapshot_path: Option<PathBuf>,
     last_transaction: Option<Transaction>,
     event_sequence: u64,
     events: VecDeque<Event>,
@@ -56,9 +62,15 @@ pub struct StatusHub {
 }
 
 impl StatusHub {
-    pub fn new(interface: &str, loid_configured: bool) -> Self {
+    pub fn new(
+        line: &str,
+        interface: &str,
+        loid_configured: bool,
+        tr069_snapshot_path: Option<PathBuf>,
+    ) -> Self {
         let hub = Self {
             shared: Arc::new(Mutex::new(Inner {
+                line: line.to_owned(),
                 interface: interface.to_owned(),
                 loid_configured,
                 rx_messages: 0,
@@ -69,6 +81,10 @@ impl StatusHub {
                 provisioning: ProvisioningSnapshot::default(),
                 data_path_graph: DataPathGraph::default(),
                 backend: BackendStatus::default(),
+                tr069: Tr069ProvisioningSnapshot::default(),
+                tr069_updated_at_ms: 0,
+                tr069_initialized: false,
+                tr069_snapshot_path,
                 last_transaction: None,
                 event_sequence: 0,
                 events: VecDeque::with_capacity(EVENT_CAPACITY),
@@ -159,11 +175,33 @@ impl StatusHub {
         provisioning: ProvisioningSnapshot,
         data_path_graph: DataPathGraph,
         backend: BackendStatus,
+        tr069: Tr069ProvisioningSnapshot,
     ) {
-        let mut inner = self.shared.lock().expect("status mutex poisoned");
-        inner.provisioning = provisioning;
-        inner.data_path_graph = data_path_graph;
-        inner.backend = backend;
+        let snapshot_to_write = {
+            let mut inner = self.shared.lock().expect("status mutex poisoned");
+            inner.provisioning = provisioning;
+            inner.data_path_graph = data_path_graph;
+            inner.backend = backend;
+            if !inner.tr069_initialized || inner.tr069 != tr069 {
+                inner.tr069 = tr069;
+                inner.tr069_updated_at_ms = now_ms();
+                inner.tr069_initialized = true;
+                inner
+                    .tr069_snapshot_path
+                    .as_ref()
+                    .map(|path| (path.clone(), tr069_json(&inner)))
+            } else {
+                None
+            }
+        };
+        if let Some((path, json)) = snapshot_to_write {
+            if let Err(error) = write_tr069_snapshot(&path, &json) {
+                self.record_event(
+                    "tr069-export-error",
+                    format!("failed to write {}: {error}", path.display()),
+                );
+            }
+        }
     }
 
     fn record_event(&self, kind: &'static str, message: String) {
@@ -205,6 +243,10 @@ fn handle_client(mut stream: UnixStream, status: &StatusHub) -> io::Result<()> {
         ["DATAPATH", "1"] => {
             let inner = status.shared.lock().expect("status mutex poisoned");
             writeln!(stream, "{}", data_path_json(&inner))
+        }
+        ["TR069", "1"] => {
+            let inner = status.shared.lock().expect("status mutex poisoned");
+            writeln!(stream, "{}", tr069_json(&inner))
         }
         ["EVENTS", "1", after] => {
             let after = after
@@ -529,4 +571,298 @@ fn now_ms() -> u128 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::provisioning::{
+        IpHostFamily, Ipv4HostSnapshot, Ipv6HostSnapshot, TcpUdpConfigSnapshot,
+        Tr069ServerSnapshot,
+    };
+
+    #[test]
+    fn tr069_socket_and_atomic_snapshot_file_match_contract() {
+        let pid = std::process::id();
+        let dir = std::env::temp_dir().join(format!("airoha-pond-test-{pid}"));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let sock_path = dir.join("airoha-pond.line0.sock");
+        let snap_path = dir.join("airoha-pond-tr069.line0.json");
+
+        let hub = StatusHub::new("line0", "omci0", false, Some(snap_path.clone()));
+        let _server = start_server(&sock_path, hub.clone()).unwrap();
+
+        let tr069 = Tr069ProvisioningSnapshot {
+            management_vlan: Some(46),
+            ipv4_hosts: vec![Ipv4HostSnapshot {
+                entity_id: 1,
+                mac_address: "02:11:22:33:44:55".to_owned(),
+                ip_options: 1,
+                ip_address: "0.0.0.0".to_owned(),
+                mask: "0.0.0.0".to_owned(),
+                gateway: "0.0.0.0".to_owned(),
+                primary_dns: "0.0.0.0".to_owned(),
+                secondary_dns: "0.0.0.0".to_owned(),
+                current_address: "10.0.0.2".to_owned(),
+                current_mask: "255.255.255.0".to_owned(),
+                current_gateway: "10.0.0.1".to_owned(),
+                current_primary_dns: "10.0.0.53".to_owned(),
+                current_secondary_dns: "0.0.0.0".to_owned(),
+                domain_name: "example.invalid".to_owned(),
+                host_name: "cpe-test".to_owned(),
+                relay_tag_mode: 0xffff,
+            }],
+            ipv6_hosts: vec![Ipv6HostSnapshot {
+                entity_id: 2,
+                mac_address: "02:11:22:33:44:55".to_owned(),
+                ip_options: 7,
+                ipv6_address: "2001:db8::10".to_owned(),
+                prefix_length: 64,
+                gateway: "fe80::1".to_owned(),
+                primary_dns: "2001:db8::53".to_owned(),
+                secondary_dns: "::".to_owned(),
+                current_addresses: vec!["2001:db8::10".to_owned()],
+                current_gateway: "fe80::1".to_owned(),
+                current_primary_dns: "2001:db8::53".to_owned(),
+                current_secondary_dns: "::".to_owned(),
+                domain_name: "example.invalid".to_owned(),
+                host_name: "cpe-test".to_owned(),
+                relay_tag_mode: 0xffff,
+            }],
+            tcp_udp_configs: vec![TcpUdpConfigSnapshot {
+                entity_id: 1,
+                port: 7547,
+                protocol: 6,
+                tos_diffserv: 0,
+                ip_host_pointer: 2,
+                ip_host_family: IpHostFamily::Ipv6,
+            }],
+            tr069_servers: vec![Tr069ServerSnapshot {
+                entity_id: 0,
+                admin_state: true,
+                acs_url: "https://acs.example.invalid:9443/cwmp".to_owned(),
+                associated_tag: 1,
+                tcp_udp_pointer: Some(1),
+                ip_host_pointer: Some(2),
+                ip_host_family: IpHostFamily::Ipv6,
+                auth_method: 1,
+                acs_username: "synthetic-user".to_owned(),
+                acs_password: "synthetic-\"pass\"".to_owned(),
+                acs_username_present: true,
+                acs_password_present: true,
+            }],
+        };
+
+        hub.record_provisioning(
+            ProvisioningSnapshot::default(),
+            DataPathGraph::default(),
+            BackendStatus::default(),
+            tr069,
+        );
+
+        let meta = fs::metadata(&snap_path).unwrap();
+        assert_eq!(meta.permissions().mode() & 0o777, 0o600);
+        let file_json = fs::read_to_string(&snap_path).unwrap();
+
+        let mut stream = UnixStream::connect(&sock_path).unwrap();
+        writeln!(stream, "TR069 1").unwrap();
+        stream.shutdown(std::net::Shutdown::Write).unwrap();
+        let mut sock_json = String::new();
+        std::io::Read::read_to_string(&mut stream, &mut sock_json).unwrap();
+
+        assert_eq!(file_json.trim(), sock_json.trim());
+        for expected in [
+            "\"protocol_version\":1",
+            "\"line\":\"line0\"",
+            "\"management_vlan\":46",
+            "\"ipv4_hosts\":[",
+            "\"ipv6_hosts\":[",
+            "\"tcp_udp_configs\":[",
+            "\"tr069_servers\":[",
+            "\"ip_host_family\":\"ipv6\"",
+            "\"acs_url\":\"https://acs.example.invalid:9443/cwmp\"",
+            "\"acs_password\":\"synthetic-\\\"pass\\\"\"",
+        ] {
+            assert!(sock_json.contains(expected), "missing {expected} in {sock_json}");
+        }
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+}
+
+pub fn write_tr069_snapshot(path: &Path, json: &str) -> io::Result<()> {
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("tr069-snapshot.json");
+    let tmp_path = path.with_file_name(format!(".{file_name}.tmp.{}", std::process::id()));
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&tmp_path)?;
+    fs::set_permissions(&tmp_path, fs::Permissions::from_mode(0o600))?;
+    file.write_all(json.as_bytes())?;
+    file.write_all(b"\n")?;
+    file.sync_all()?;
+    drop(file);
+    fs::rename(&tmp_path, path)
+}
+
+fn tr069_json(inner: &Inner) -> String {
+    use std::fmt::Write as _;
+
+    let management_vlan = inner
+        .tr069
+        .management_vlan
+        .map(|vid| vid.to_string())
+        .unwrap_or_else(|| "null".to_owned());
+
+    let mut ipv4_hosts = String::new();
+    for (index, host) in inner.tr069.ipv4_hosts.iter().enumerate() {
+        if index != 0 {
+            ipv4_hosts.push(',');
+        }
+        let _ = write!(
+            ipv4_hosts,
+            concat!(
+                "{{\"entity_id\":{},\"mac_address\":{},\"ip_options\":{},",
+                "\"ip_address\":{},\"mask\":{},\"gateway\":{},",
+                "\"primary_dns\":{},\"secondary_dns\":{},",
+                "\"current_address\":{},\"current_mask\":{},\"current_gateway\":{},",
+                "\"current_primary_dns\":{},\"current_secondary_dns\":{},",
+                "\"domain_name\":{},\"host_name\":{},\"relay_tag_mode\":{}}}"
+            ),
+            host.entity_id,
+            json_string(&host.mac_address),
+            host.ip_options,
+            json_string(&host.ip_address),
+            json_string(&host.mask),
+            json_string(&host.gateway),
+            json_string(&host.primary_dns),
+            json_string(&host.secondary_dns),
+            json_string(&host.current_address),
+            json_string(&host.current_mask),
+            json_string(&host.current_gateway),
+            json_string(&host.current_primary_dns),
+            json_string(&host.current_secondary_dns),
+            json_string(&host.domain_name),
+            json_string(&host.host_name),
+            host.relay_tag_mode
+        );
+    }
+
+    let mut ipv6_hosts = String::new();
+    for (index, host) in inner.tr069.ipv6_hosts.iter().enumerate() {
+        if index != 0 {
+            ipv6_hosts.push(',');
+        }
+        let current_addresses = host
+            .current_addresses
+            .iter()
+            .map(|addr| json_string(addr))
+            .collect::<Vec<_>>()
+            .join(",");
+        let _ = write!(
+            ipv6_hosts,
+            concat!(
+                "{{\"entity_id\":{},\"mac_address\":{},\"ip_options\":{},",
+                "\"ipv6_address\":{},\"prefix_length\":{},\"gateway\":{},",
+                "\"primary_dns\":{},\"secondary_dns\":{},",
+                "\"current_addresses\":[{}],\"current_gateway\":{},",
+                "\"current_primary_dns\":{},\"current_secondary_dns\":{},",
+                "\"domain_name\":{},\"host_name\":{},\"relay_tag_mode\":{}}}"
+            ),
+            host.entity_id,
+            json_string(&host.mac_address),
+            host.ip_options,
+            json_string(&host.ipv6_address),
+            host.prefix_length,
+            json_string(&host.gateway),
+            json_string(&host.primary_dns),
+            json_string(&host.secondary_dns),
+            current_addresses,
+            json_string(&host.current_gateway),
+            json_string(&host.current_primary_dns),
+            json_string(&host.current_secondary_dns),
+            json_string(&host.domain_name),
+            json_string(&host.host_name),
+            host.relay_tag_mode
+        );
+    }
+
+    let mut tcp_udp_configs = String::new();
+    for (index, cfg) in inner.tr069.tcp_udp_configs.iter().enumerate() {
+        if index != 0 {
+            tcp_udp_configs.push(',');
+        }
+        let _ = write!(
+            tcp_udp_configs,
+            concat!(
+                "{{\"entity_id\":{},\"port\":{},\"protocol\":{},",
+                "\"tos_diffserv\":{},\"ip_host_pointer\":{},\"ip_host_family\":{}}}"
+            ),
+            cfg.entity_id,
+            cfg.port,
+            cfg.protocol,
+            cfg.tos_diffserv,
+            cfg.ip_host_pointer,
+            json_string(cfg.ip_host_family.as_str())
+        );
+    }
+
+    let mut tr069_servers = String::new();
+    for (index, server) in inner.tr069.tr069_servers.iter().enumerate() {
+        if index != 0 {
+            tr069_servers.push(',');
+        }
+        let tcp_udp_pointer = server
+            .tcp_udp_pointer
+            .map(|ptr| ptr.to_string())
+            .unwrap_or_else(|| "null".to_owned());
+        let ip_host_pointer = server
+            .ip_host_pointer
+            .map(|ptr| ptr.to_string())
+            .unwrap_or_else(|| "null".to_owned());
+        let _ = write!(
+            tr069_servers,
+            concat!(
+                "{{\"entity_id\":{},\"admin_state\":{},\"acs_url\":{},",
+                "\"associated_tag\":{},\"tcp_udp_pointer\":{},",
+                "\"ip_host_pointer\":{},\"ip_host_family\":{},",
+                "\"auth_method\":{},\"acs_username\":{},\"acs_password\":{},",
+                "\"acs_username_present\":{},\"acs_password_present\":{}}}"
+            ),
+            server.entity_id,
+            server.admin_state,
+            json_string(&server.acs_url),
+            server.associated_tag,
+            tcp_udp_pointer,
+            ip_host_pointer,
+            json_string(server.ip_host_family.as_str()),
+            server.auth_method,
+            json_string(&server.acs_username),
+            json_string(&server.acs_password),
+            server.acs_username_present,
+            server.acs_password_present
+        );
+    }
+
+    format!(
+        concat!(
+            "{{\"protocol_version\":{},\"line\":{},\"updated_at_ms\":{},",
+            "\"management_vlan\":{},\"ipv4_hosts\":[{}],\"ipv6_hosts\":[{}],",
+            "\"tcp_udp_configs\":[{}],\"tr069_servers\":[{}]}}"
+        ),
+        CONTROL_PROTOCOL_VERSION,
+        json_string(&inner.line),
+        inner.tr069_updated_at_ms,
+        management_vlan,
+        ipv4_hosts,
+        ipv6_hosts,
+        tcp_udp_configs,
+        tr069_servers
+    )
 }

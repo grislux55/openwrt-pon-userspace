@@ -30,6 +30,10 @@ fn control_socket(line: &str) -> PathBuf {
     PathBuf::from(format!("/var/run/airoha-pond.{line}.sock"))
 }
 
+fn tr069_snapshot_path(line: &str) -> PathBuf {
+    PathBuf::from(format!("/tmp/airoha-pond-tr069.{line}.json"))
+}
+
 fn run_line(config_path: &Path, line_name: &str) -> io::Result<()> {
     let config = PonConfig::load(config_path)?;
     let line = config.section(line_name, "xpon")?;
@@ -41,13 +45,14 @@ fn run_line(config_path: &Path, line_name: &str) -> io::Result<()> {
             let section = config.linked_section("omci", line_name)?;
             let interface = required_option(section, "device")?;
             let identity = omci::IdentityConfig::from_section(section);
+            let snapshot_path = tr069_snapshot_path(line_name);
             println!(
                 "PON agent selected OMCI: line={} interface={} mode={}",
                 line_name,
                 interface,
                 display_mode(mode)
             );
-            omci::run_agent(interface, identity, &socket)
+            omci::run_agent(line_name, interface, identity, &socket, &snapshot_path)
         }
         Protocol::Oam => {
             let section = config.linked_section("oam", line_name)?;
@@ -88,7 +93,7 @@ fn print_help(program: &str) {
     println!("{program} {VERSION}\n{PROJECT_URL}\n");
     if program == "pondctl" {
         println!(
-            "Usage:\n  pondctl status --line NAME\n  pondctl datapath --line NAME\n  pondctl events --line NAME [--after SEQUENCE]"
+            "Usage:\n  pondctl status --line NAME\n  pondctl datapath --line NAME\n  pondctl tr069 --line NAME\n  pondctl events --line NAME [--after SEQUENCE]"
         );
     } else {
         println!("Usage:\n  airoha-pond --line NAME");
@@ -132,6 +137,9 @@ fn execute_control(arguments: &[String]) -> io::Result<()> {
         }
         [command, flag, line] if flag == "--line" && command == "datapath" => {
             run_control(line, "DATAPATH 1")
+        }
+        [command, flag, line] if flag == "--line" && command == "tr069" => {
+            run_control(line, "TR069 1")
         }
         [command, flag, line] if flag == "--line" && command == "events" => {
             run_control(line, "EVENTS 1 0")

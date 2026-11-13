@@ -23,6 +23,11 @@ pub const CLASS_ETHERNET_PM_HISTORY_DATA_2: u16 = 89;
 pub const CLASS_IEEE_8021P_MAPPER: u16 = 130;
 pub const CLASS_OLT_G: u16 = 131;
 pub const CLASS_ONU_POWER_SHEDDING: u16 = 133;
+pub const CLASS_IP_HOST_CONFIG_DATA: u16 = 134;
+pub const CLASS_TCP_UDP_CONFIG_DATA: u16 = 136;
+pub const CLASS_NETWORK_ADDRESS: u16 = 137;
+pub const CLASS_AUTHENTICATION_SECURITY_METHOD: u16 = 138;
+pub const CLASS_LARGE_STRING: u16 = 157;
 pub const CLASS_EXTENDED_VLAN_TAGGING: u16 = 171;
 pub const CLASS_VENDOR_247: u16 = 247;
 pub const CLASS_ONU_G: u16 = 256;
@@ -49,6 +54,8 @@ pub const CLASS_FEC_PM_HISTORY_DATA: u16 = 312;
 pub const CLASS_VEIP: u16 = 329;
 pub const CLASS_ENHANCED_SECURITY_CONTROL: u16 = 332;
 pub const CLASS_ETHERNET_FRAME_EXTENDED_PM: u16 = 334;
+pub const CLASS_TR069_MANAGEMENT_SERVER: u16 = 340;
+pub const CLASS_IPV6_HOST_CONFIG_DATA: u16 = 347;
 pub const CLASS_VENDOR_351: u16 = 351;
 pub const CLASS_CTC_LOID_AUTH: u16 = 0xfffa;
 
@@ -325,6 +332,93 @@ const POWER_SHEDDING_ATTRIBUTES: &[AttributeDefinition] = &[
     AttributeDefinition::read_write(10, 2),
     AttributeDefinition::read_write(11, 2),
     AttributeDefinition::read_only(12, 1),
+];
+
+const IP_HOST_CONFIG_ATTRIBUTES: &[AttributeDefinition] = &[
+    AttributeDefinition::read_write(1, 1),
+    AttributeDefinition::read_only(2, 6),
+    AttributeDefinition::read_write(3, 25),
+    AttributeDefinition::read_write(4, 4),
+    AttributeDefinition::read_write(5, 4),
+    AttributeDefinition::read_write(6, 4),
+    AttributeDefinition::read_write(7, 4),
+    AttributeDefinition::read_write(8, 4),
+    AttributeDefinition::read_only(9, 4).runtime_only(),
+    AttributeDefinition::read_only(10, 4).runtime_only(),
+    AttributeDefinition::read_only(11, 4).runtime_only(),
+    AttributeDefinition::read_only(12, 4).runtime_only(),
+    AttributeDefinition::read_only(13, 4).runtime_only(),
+    AttributeDefinition::read_only(14, 25),
+    AttributeDefinition::read_only(15, 25),
+    AttributeDefinition::read_write(16, 2).with_default(UNUSED_U16),
+];
+
+const TCP_UDP_CONFIG_ATTRIBUTES: &[AttributeDefinition] = &[
+    AttributeDefinition::read_write(1, 2).required(0),
+    AttributeDefinition::read_write(2, 1).required(2),
+    AttributeDefinition::read_write(3, 1).required(3),
+    AttributeDefinition::read_write(4, 2)
+        .required(4)
+        .with_default(UNUSED_U16),
+];
+
+const NETWORK_ADDRESS_ATTRIBUTES: &[AttributeDefinition] = &[
+    AttributeDefinition::read_write(1, 2)
+        .required(0)
+        .with_default(UNUSED_U16),
+    AttributeDefinition::read_write(2, 2)
+        .required(2)
+        .with_default(UNUSED_U16),
+];
+
+const AUTHENTICATION_SECURITY_METHOD_ATTRIBUTES: &[AttributeDefinition] = &[
+    AttributeDefinition::read_write(1, 1),
+    AttributeDefinition::read_write(2, 25),
+    AttributeDefinition::read_write(3, 25),
+    AttributeDefinition::read_write(4, 25),
+    AttributeDefinition::read_write(5, 25),
+];
+
+const LARGE_STRING_ATTRIBUTES: &[AttributeDefinition] = &[
+    AttributeDefinition::read_write(1, 1),
+    AttributeDefinition::read_write(2, 25),
+    AttributeDefinition::read_write(3, 25),
+    AttributeDefinition::read_write(4, 25),
+    AttributeDefinition::read_write(5, 25),
+    AttributeDefinition::read_write(6, 25),
+    AttributeDefinition::read_write(7, 25),
+    AttributeDefinition::read_write(8, 25),
+    AttributeDefinition::read_write(9, 25),
+    AttributeDefinition::read_write(10, 25),
+    AttributeDefinition::read_write(11, 25),
+    AttributeDefinition::read_write(12, 25),
+    AttributeDefinition::read_write(13, 25),
+    AttributeDefinition::read_write(14, 25),
+    AttributeDefinition::read_write(15, 25),
+    AttributeDefinition::read_write(16, 25),
+];
+
+const TR069_MANAGEMENT_SERVER_ATTRIBUTES: &[AttributeDefinition] = &[
+    AttributeDefinition::read_write(1, 1).with_default(&[1]),
+    AttributeDefinition::read_write(2, 2).with_default(UNUSED_U16),
+    AttributeDefinition::read_write(3, 2).with_default(UNUSED_U16),
+];
+
+const IPV6_HOST_CONFIG_ATTRIBUTES: &[AttributeDefinition] = &[
+    AttributeDefinition::read_write(1, 1),
+    AttributeDefinition::read_only(2, 6),
+    AttributeDefinition::read_write(3, 25),
+    AttributeDefinition::read_only(4, 16),
+    AttributeDefinition::read_write(5, 16),
+    AttributeDefinition::read_write(6, 16),
+    AttributeDefinition::read_write(7, 16),
+    AttributeDefinition::read_write(8, 16),
+    AttributeDefinition::read_only_table(9, 24),
+    AttributeDefinition::read_only_table(10, 16),
+    AttributeDefinition::read_only_table(11, 16),
+    AttributeDefinition::read_only(12, 25),
+    AttributeDefinition::read_only(13, 25),
+    AttributeDefinition::read_write(14, 2).with_default(UNUSED_U16),
 ];
 
 const EXTENDED_VLAN_ATTRIBUTES: &[AttributeDefinition] = &[
@@ -751,6 +845,41 @@ pub static MANAGED_ENTITIES: &[ManagedEntityDefinition] = &[
         attributes: POWER_SHEDDING_ATTRIBUTES,
     },
     ManagedEntityDefinition {
+        class_id: CLASS_IP_HOST_CONFIG_DATA,
+        name: "IP host config data",
+        origin: ManagedEntityOrigin::Onu,
+        actions: ACTIONS_ONU_RW,
+        attributes: IP_HOST_CONFIG_ATTRIBUTES,
+    },
+    ManagedEntityDefinition {
+        class_id: CLASS_TCP_UDP_CONFIG_DATA,
+        name: "TCP/UDP config data",
+        origin: ManagedEntityOrigin::Olt,
+        actions: ACTIONS_OLT_RW,
+        attributes: TCP_UDP_CONFIG_ATTRIBUTES,
+    },
+    ManagedEntityDefinition {
+        class_id: CLASS_NETWORK_ADDRESS,
+        name: "Network address",
+        origin: ManagedEntityOrigin::Olt,
+        actions: ACTIONS_OLT_RW,
+        attributes: NETWORK_ADDRESS_ATTRIBUTES,
+    },
+    ManagedEntityDefinition {
+        class_id: CLASS_AUTHENTICATION_SECURITY_METHOD,
+        name: "Authentication security method",
+        origin: ManagedEntityOrigin::Olt,
+        actions: ACTIONS_OLT_RW,
+        attributes: AUTHENTICATION_SECURITY_METHOD_ATTRIBUTES,
+    },
+    ManagedEntityDefinition {
+        class_id: CLASS_LARGE_STRING,
+        name: "Large string",
+        origin: ManagedEntityOrigin::Olt,
+        actions: ACTIONS_OLT_RW,
+        attributes: LARGE_STRING_ATTRIBUTES,
+    },
+    ManagedEntityDefinition {
         class_id: CLASS_EXTENDED_VLAN_TAGGING,
         name: "Extended VLAN tagging operation configuration data",
         origin: ManagedEntityOrigin::Olt,
@@ -931,6 +1060,20 @@ pub static MANAGED_ENTITIES: &[ManagedEntityDefinition] = &[
         origin: ManagedEntityOrigin::Olt,
         actions: ACTIONS_PM,
         attributes: ETHERNET_FRAME_EXTENDED_PM_ATTRIBUTES,
+    },
+    ManagedEntityDefinition {
+        class_id: CLASS_TR069_MANAGEMENT_SERVER,
+        name: "BBF TR-069 management server",
+        origin: ManagedEntityOrigin::Onu,
+        actions: ACTIONS_ONU_RW,
+        attributes: TR069_MANAGEMENT_SERVER_ATTRIBUTES,
+    },
+    ManagedEntityDefinition {
+        class_id: CLASS_IPV6_HOST_CONFIG_DATA,
+        name: "IPv6 host config data",
+        origin: ManagedEntityOrigin::Onu,
+        actions: ACTIONS_ONU_RW | action_bit(ACTION_GET_NEXT),
+        attributes: IPV6_HOST_CONFIG_ATTRIBUTES,
     },
     ManagedEntityDefinition {
         class_id: CLASS_VENDOR_351,
