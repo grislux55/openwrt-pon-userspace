@@ -49,8 +49,15 @@ return view.extend({
 
 		button.disabled = true;
 		button.classList.add('spinning');
-		return fs.exec_direct(HELPER, [ 'restart' ]).then(function(output) {
-			var result = JSON.parse(output);
+		return fs.exec(HELPER, [ 'restart' ]).then(function(res) {
+			if (res.code != 0)
+				throw new Error((res.stderr || res.stdout || _('PON restart failed.')).trim());
+			var result;
+			try {
+				result = JSON.parse(res.stdout);
+			} catch (e) {
+				throw new Error(res.stderr || _('PON restart failed.'));
+			}
 
 			if (!result.ok)
 				throw new Error(_('PON restart failed.'));

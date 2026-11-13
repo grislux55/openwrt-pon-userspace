@@ -941,3 +941,96 @@ msgstr "Alloc-ID 等待超时"
 
 msgid "Seconds a data path may wait for PLOAM to assign its Alloc-ID before it is reported as failed. The ONU keeps waiting afterwards; 0 disables the timeout."
 msgstr "数据通道等待 PLOAM 分配 Alloc-ID 的秒数，超过后报告失败。之后 ONU 仍会继续等待；0 表示不超时。"
+
+msgid "Optical calibration"
+msgstr "光模块校准"
+
+msgid "Board identity"
+msgstr "板级身份"
+
+msgid "Bootloader (BL31 / U-Boot)"
+msgstr "引导加载程序（BL31 / U-Boot）"
+
+msgid "U-Boot environment"
+msgstr "U-Boot 环境变量"
+
+msgid "U-Boot redundant environment"
+msgstr "U-Boot 冗余环境变量"
+
+msgid "Board data"
+msgstr "板级数据"
+
+msgid "OK"
+msgstr "正常"
+
+msgid "Empty"
+msgstr "空卷"
+
+msgid "Read error"
+msgstr "读取错误"
+
+msgid "Exported %s (%s)."
+msgstr "已导出 %s（%s）。"
+
+msgid "Exporting %s failed: %s"
+msgstr "导出 %s 失败：%s"
+
+msgid "Partial UBI backup downloaded (%d/%d volumes). Missing or unreadable volumes are recorded in MANIFEST.txt: %s"
+msgstr "已下载部分 UBI 备份（%d/%d 个卷）。缺失或读取失败的卷已在 MANIFEST.txt 中标明：%s"
+
+msgid "Complete UBI backup downloaded (%d/%d volumes, %s)."
+msgstr "已下载完整 UBI 备份（%d/%d 个卷，%s）。"
+
+msgid "Creating critical UBI backup failed: %s"
+msgstr "创建关键 UBI 备份失败：%s"
+
+msgid "Sysupgrade UBI layout check passed: all critical volumes (bosa, ri, fip, ubootenv, ubootenv2) are present and FIP is non-empty."
+msgstr "Sysupgrade UBI 布局检查通过：全部关键卷（bosa、ri、fip、ubootenv、ubootenv2）均存在且 FIP 非空。"
+
+msgid "Sysupgrade UBI layout check incomplete: missing or invalid volumes (%s). Repair the UBI layout before flashing."
+msgstr "Sysupgrade UBI 布局检查不完整：存在缺失或异常卷（%s）。刷机前请先修复 UBI 布局。"
+
+msgid "unknown"
+msgstr "未知"
+
+msgid "Volume"
+msgstr "卷名"
+
+msgid "Purpose"
+msgstr "用途"
+
+msgid "Access"
+msgstr "访问权限"
+
+msgid "Storage"
+msgstr "存储位置"
+
+msgid "Data / Reserved"
+msgstr "数据 / 保留容量"
+
+msgid "Read / Write"
+msgstr "只读备份 / 可写入"
+
+msgid "Read-only"
+msgstr "只读"
+
+msgid "Critical UBI volume health"
+msgstr "关键 UBI 卷健康状态"
+
+msgid "Read-only status of calibration, identity, bootloader and U-Boot environment volumes. The bl2 partition is intentionally excluded and stays read-only."
+msgstr "仅展示校准、身份、引导加载程序与 U-Boot 环境变量卷的只读健康状态。只读 bl2 分区已刻意排除，不受影响。"
+
+msgid "Single volume export (read-only)"
+msgstr "单卷原始导出（只读）"
+
+msgid "Download %s"
+msgstr "下载 %s"
+
+msgid "Full critical UBI backup"
+msgstr "全量关键 UBI 卷备份"
+
+msgid "Download full UBI backup (.tar.gz)"
+msgstr "下载全量 UBI 备份（.tar.gz）"
+
+msgid "Archives bosa, ri, fip, ubootenv and ubootenv2 (read-only, excluding bl2) with SHA-256 MANIFEST.txt. If any volume is missing or unreadable, available volumes are still included with a warning."
+msgstr "打包导出 bosa、ri、fip、ubootenv 和 ubootenv2（只读，不含 bl2）及 SHA-256 校验清单 MANIFEST.txt；若部分卷缺失或读取失败，仍可下载已成功读取的数据并提示警告。"

@@ -132,6 +132,7 @@ mkdir /tmp/airoha-pon-data.lock 2>/dev/null || fail "Board data is busy"
 work=
 trap cleanup EXIT
 work="$(mktemp -d /tmp/pon-board-identity.XXXXXX)" || fail "Cannot create work directory"
+chmod 0700 "$work"
 
 load_storage
 locate_target
@@ -158,7 +159,8 @@ done
 
 # Keep the original logical image available for recovery after an update.
 backup="/tmp/pon-board-identity.$name.$$.bin"
-cp "$work/current" "$backup" || fail "Cannot save identity backup"
+(umask 077 && cp "$work/current" "$backup") || fail "Cannot save identity backup"
+chmod 0600 "$backup"
 case "$storage" in
 ubi) ubiupdatevol "$target" "$work/updated" || fail "UBI update failed" ;;
 mtd) mtd write "$work/updated" "$name" || fail "MTD write failed" ;;

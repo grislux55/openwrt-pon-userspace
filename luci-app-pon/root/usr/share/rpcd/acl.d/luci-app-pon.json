@@ -5,7 +5,7 @@
 			"cgi-io": [ "exec" ],
 			"uci": [ "pon", "airoha-pon-debug" ],
 			"ubus": {
-				"file": [ "read" ]
+				"file": [ "read", "exec" ]
 			},
 			"file": {
 				"/usr/sbin/ponctl --device * status": [ "exec" ],
@@ -14,7 +14,12 @@
 				"/usr/libexec/pon-board-identity list": [ "exec" ],
 				"/usr/libexec/pon-board-identity read *": [ "exec" ],
 				"/usr/libexec/airoha-pon-data list": [ "exec" ],
-				"/tmp/pon-debug.tar.gz": [ "read" ]
+				"/usr/libexec/airoha-pon-data status": [ "exec" ],
+				"/usr/libexec/airoha-pon-data export *": [ "exec" ],
+				"/usr/libexec/airoha-pon-data backup": [ "exec" ],
+				"/tmp/pon-debug.tar.gz": [ "read" ],
+				"/tmp/pon-board-data-export.bin": [ "read" ],
+				"/tmp/pon-ubi-backup.tar.gz": [ "read" ]
 			}
 		},
 		"write": {

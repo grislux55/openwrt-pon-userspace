@@ -1,9 +1,35 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 
-. /lib/functions.sh
-. /usr/share/libubox/jshn.sh
-. /lib/upgrade/nand.sh
+PON_DATA_ROOT="${PON_DATA_ROOT:-}"
+if [ -n "$PON_DATA_ROOT" ] && [ ! -f /lib/functions.sh ]; then
+	. "$PON_DATA_ROOT/lib/functions.sh"
+	. "$PON_DATA_ROOT/usr/share/libubox/jshn.sh"
+	. "$PON_DATA_ROOT/lib/upgrade/nand.sh"
+else
+	. /lib/functions.sh
+	. /usr/share/libubox/jshn.sh
+	. /lib/upgrade/nand.sh
+fi
+
+BOARD_JSON="$PON_DATA_ROOT/etc/board.json"
+SYS_UBI="$PON_DATA_ROOT/sys/class/ubi"
+SYS_MTD="$PON_DATA_ROOT/sys/class/mtd"
+DEV_DIR="$PON_DATA_ROOT/dev"
+TMP_DIR="$PON_DATA_ROOT/tmp"
+SYSINFO_DIR="$PON_DATA_ROOT/tmp/sysinfo"
+
+LOCK_DIR="$TMP_DIR/airoha-pon-data.lock"
+UPLOAD_FILE="$TMP_DIR/pon-board-data.bin"
+EXPORT_FILE="$TMP_DIR/pon-board-data-export.bin"
+BACKUP_FILE="$TMP_DIR/pon-ubi-backup.tar.gz"
+CORE_VOLUMES="bosa ri fip ubootenv ubootenv2"
+
+LOCK_HELD=0
+work=""
+storage=""
+capacity=0
+parent=""
 
 fail()
 {
@@ -11,27 +37,101 @@ fail()
 	exit 1
 }
 
+valid_name()
+{
+	case "$1" in
+		''|*[!A-Za-z0-9_-]*) return 1 ;;
+	esac
+	return 0
+}
+
+is_protected_boot_volume()
+{
+	case "$1" in
+		bl2|fip|ubootenv|ubootenv2) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+volume_role()
+{
+	case "$1" in
+		bosa) printf 'calibration' ;;
+		ri) printf 'identity' ;;
+		fip) printf 'bootloader' ;;
+		ubootenv) printf 'ubootenv' ;;
+		ubootenv2) printf 'ubootenv_redundant' ;;
+		*) printf 'pon_data' ;;
+	esac
+}
+
+acquire_lock()
+{
+	mkdir "$LOCK_DIR" 2>/dev/null || fail "Another board data operation is in progress"
+	LOCK_HELD=1
+}
+
+cleanup()
+{
+	[ -n "$work" ] && rm -rf "$work"
+	[ "$LOCK_HELD" -eq 1 ] && rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+
+compute_sha256()
+{
+	local sha_out=""
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha_out="$(sha256sum "$1")"
+		printf '%s\n' "${sha_out%% *}"
+	elif command -v openssl >/dev/null 2>&1; then
+		openssl dgst -sha256 "$1" | sed 's/^.*= //'
+	else
+		printf 'unavailable\n'
+	fi
+}
+
+lookup_pon_data()
+{
+	local vol="$1"
+	[ -r "$BOARD_JSON" ] || return 1
+	(
+		json_load "$(cat "$BOARD_JSON")" 2>/dev/null || exit 1
+		json_select pon_data 2>/dev/null || exit 1
+		json_select "$vol" 2>/dev/null || exit 1
+		json_get_var l_type type
+		json_get_var l_size size
+		json_get_var l_parent parent
+		[ -n "$l_type" ] || exit 1
+		printf '%s|%s|%s\n' "$l_type" "${l_size:-0}" "${l_parent:-}"
+	)
+}
+
 load_target()
 {
-	json_load "$(cat /etc/board.json)" || fail "Cannot read board data layout"
+	valid_name "$1" || fail "Invalid target name"
+	is_protected_boot_volume "$1" && fail "Target $1 is read-only"
+	[ -r "$BOARD_JSON" ] || fail "Cannot read board data layout"
+	json_load "$(cat "$BOARD_JSON")" || fail "Cannot read board data layout"
 	json_select pon_data || fail "Board data layout is missing"
 	json_select "$1" || fail "Unknown board data target: $1"
 	json_get_var storage type
 	json_get_var capacity size
 	json_get_var parent parent
 	name="$1"
-	case "$capacity" in ''|*[!0-9]*) fail "Invalid target size";; esac
+	case "$capacity" in ''|*[!0-9]*) fail "Invalid target size" ;; esac
 	[ "$capacity" -gt 0 ] || fail "Invalid target size"
 }
 
 locate_target()
 {
-	target=
+	local index volume entry
+	target=""
+	actual_size=0
 	if [ "$storage" = mtd ]; then
-		local index="$(find_mtd_index "$name")"
+		index="$(find_mtd_index "$name")"
 		[ -n "$index" ] || fail "MTD partition $name is missing"
-		target="/dev/mtd$index"
-		actual_size="$(cat "/sys/class/mtd/mtd$index/size")"
+		target="$DEV_DIR/mtd$index"
+		actual_size="$(cat "$SYS_MTD/mtd$index/size")"
 		[ "$actual_size" -eq "$capacity" ] || fail "MTD size differs from board layout"
 		return
 	fi
@@ -39,23 +139,23 @@ locate_target()
 	[ "$storage" = ubi ] && [ -n "$parent" ] || fail "Invalid storage declaration"
 	ubidev="$(nand_find_ubi "$parent")"
 	if [ -z "$ubidev" ]; then
-		local index="$(find_mtd_index "$parent")"
+		index="$(find_mtd_index "$parent")"
 		[ -n "$index" ] || fail "UBI parent $parent is missing"
 		ubiattach -m "$index" >&2 || fail "Cannot attach UBI on $parent"
 		ubidev="$(nand_find_ubi "$parent")"
 	fi
 	[ -n "$ubidev" ] || fail "UBI on $parent is missing"
-	local volume="$(nand_find_volume "$ubidev" "$name")"
+	volume="$(nand_find_volume "$ubidev" "$name")"
 	[ -n "$volume" ] || return 0
-	target="/dev/$volume"
-	local entry="/sys/class/ubi/$volume"
+	target="$DEV_DIR/$volume"
+	entry="$SYS_UBI/$volume"
 	actual_size=$(($(cat "$entry/reserved_ebs") * $(cat "$entry/usable_eb_size")))
 }
 
 read_target()
 {
 	local output="$1" length="$2"
-	if [ "$storage" = mtd ] && [ "$(cat "/sys/class/mtd/${target##*/}/type")" = nand ]; then
+	if [ "$storage" = mtd ] && [ "$(cat "$SYS_MTD/${target##*/}/type")" = nand ]; then
 		# Read NAND through the same bad-block mapping used by mtd write.
 		nanddump -q --bb=skipbad -l "$length" -f "$output" "$target" ||
 			fail "MTD read failed"
@@ -67,22 +167,23 @@ read_target()
 
 write_target()
 {
-	local backup=
+	local backup=""
 
 	if [ -n "$target" ]; then
-		backup="/tmp/pon-board-data.$name.$$.bin"
+		backup="$TMP_DIR/pon-board-data.$name.$$.bin"
 		read_target "$work/original" "$capacity"
-		cp "$work/original" "$backup" || fail "Cannot save board data backup"
+		(umask 077 && cp "$work/original" "$backup") || fail "Cannot save board data backup"
+		chmod 0600 "$backup"
 	fi
 	if [ -z "$target" ]; then
-		ubimkvol "/dev/$ubidev" -N "$name" -s "$capacity" -t static >&2 ||
+		ubimkvol "$DEV_DIR/$ubidev" -N "$name" -s "$capacity" -t static >&2 ||
 			fail "Cannot create $name; check free UBI space"
 		locate_target
 	fi
 	[ -n "$target" ] && [ "$actual_size" -ge "$length" ] || fail "Existing target is too small"
 	case "$storage" in
-	ubi) ubiupdatevol "$target" "$work/input" >&2 || fail "UBI update failed";;
-	mtd) mtd write "$work/input" "$target" >&2 || fail "MTD write failed";;
+	ubi) ubiupdatevol "$target" "$work/input" >&2 || fail "UBI update failed" ;;
+	mtd) mtd write "$work/input" "$target" >&2 || fail "MTD write failed" ;;
 	esac
 	read_target "$work/verify" "$length"
 	cmp -s "$work/input" "$work/verify" || fail "Readback verification failed"
@@ -93,16 +194,426 @@ write_target()
 	fi
 }
 
-cleanup()
+probe_volume()
 {
-	[ -n "$work" ] && rm -rf "$work"
-	rmdir /tmp/airoha-pon-data.lock
+	local vol="$1"
+	local pd_info="" pd_type="" pd_size="" pd_parent=""
+	local idx="" ubidev="" volume="" entry="" rebs="" ebsize="" dbytes=""
+
+	v_name="$vol"
+	v_role="$(volume_role "$vol")"
+	v_storage="ubi"
+	v_parent="ubi"
+	v_declared_size=0
+	v_writable=0
+	v_present=0
+	v_device=""
+	v_vol_type=""
+	v_reserved_bytes=0
+	v_data_bytes=0
+	v_read_bytes=0
+	v_status="missing"
+	v_error=""
+
+	if pd_info="$(lookup_pon_data "$vol" 2>/dev/null)"; then
+		pd_type="${pd_info%%|*}"
+		pd_size="${pd_info#*|}"
+		pd_parent="${pd_size#*|}"
+		pd_size="${pd_size%%|*}"
+		v_storage="$pd_type"
+		case "$pd_size" in ''|*[!0-9]*) ;; *) v_declared_size="$pd_size" ;; esac
+		[ -n "$pd_parent" ] && v_parent="$pd_parent"
+		is_protected_boot_volume "$vol" || v_writable=1
+	fi
+
+	if [ "$v_storage" = "mtd" ]; then
+		idx="$(find_mtd_index "$vol" 2>/dev/null)"
+		if [ -z "$idx" ]; then
+			v_status="missing"
+			v_error="MTD partition $vol not found"
+			return 1
+		fi
+		v_device="mtd$idx"
+		if [ -r "$SYS_MTD/mtd$idx/size" ]; then
+			v_reserved_bytes="$(cat "$SYS_MTD/mtd$idx/size" 2>/dev/null || echo 0)"
+		fi
+		v_data_bytes="$v_reserved_bytes"
+		v_vol_type="mtd"
+		if [ -r "$SYS_MTD/mtd$idx/type" ] && [ "$(cat "$SYS_MTD/mtd$idx/type" 2>/dev/null)" = "nand" ]; then
+			v_vol_type="mtd-nand"
+		fi
+		if [ ! -e "$DEV_DIR/mtd$idx" ]; then
+			v_status="missing"
+			v_error="Device node $DEV_DIR/mtd$idx missing"
+			return 1
+		fi
+		v_present=1
+		if [ "$v_declared_size" -gt 0 ] && [ "$v_reserved_bytes" -lt "$v_declared_size" ]; then
+			v_status="read_error"
+			v_error="MTD partition smaller than declared size"
+			return 1
+		fi
+		if [ "$v_declared_size" -gt 0 ]; then
+			v_read_bytes="$v_declared_size"
+		else
+			v_read_bytes="$v_reserved_bytes"
+		fi
+		if [ "$v_read_bytes" -le 0 ]; then
+			v_status="read_error"
+			v_error="Invalid MTD partition size"
+			return 1
+		fi
+		v_status="ok"
+		return 0
+	fi
+
+	ubidev="$(nand_find_ubi "$v_parent" 2>/dev/null)"
+	if [ -z "$ubidev" ]; then
+		v_status="missing"
+		v_error="UBI device '$v_parent' not attached or missing"
+		return 1
+	fi
+
+	volume="$(nand_find_volume "$ubidev" "$vol" 2>/dev/null)"
+	if [ -z "$volume" ]; then
+		v_status="missing"
+		v_error="UBI volume '$vol' not found on $ubidev"
+		return 1
+	fi
+
+	v_present=1
+	v_device="$volume"
+	entry="$SYS_UBI/$volume"
+	[ -r "$entry/type" ] && v_vol_type="$(cat "$entry/type" 2>/dev/null)"
+	[ -n "$v_vol_type" ] || v_vol_type="unknown"
+	rebs="$(cat "$entry/reserved_ebs" 2>/dev/null || echo 0)"
+	ebsize="$(cat "$entry/usable_eb_size" 2>/dev/null || echo 0)"
+	case "$rebs" in ''|*[!0-9]*) rebs=0 ;; esac
+	case "$ebsize" in ''|*[!0-9]*) ebsize=0 ;; esac
+	v_reserved_bytes=$((rebs * ebsize))
+
+	if [ -r "$entry/data_bytes" ]; then
+		dbytes="$(cat "$entry/data_bytes" 2>/dev/null || echo 0)"
+		case "$dbytes" in ''|*[!0-9]*) dbytes=0 ;; esac
+		v_data_bytes="$dbytes"
+	else
+		v_data_bytes="$v_reserved_bytes"
+	fi
+
+	if [ "$v_declared_size" -gt 0 ] && [ "$v_reserved_bytes" -lt "$v_declared_size" ]; then
+		v_status="read_error"
+		v_error="UBI volume smaller than board layout"
+		return 1
+	fi
+
+	if [ ! -e "$DEV_DIR/$volume" ]; then
+		v_status="read_error"
+		v_error="Device node $DEV_DIR/$volume missing"
+		return 1
+	fi
+
+	if [ "$v_data_bytes" -le 0 ]; then
+		v_status="read_error"
+		v_error="Volume is empty (data_bytes=0)"
+		return 1
+	fi
+
+	if [ "$v_declared_size" -gt 0 ] && [ "$v_data_bytes" -gt "$v_declared_size" ]; then
+		v_read_bytes="$v_declared_size"
+	else
+		v_read_bytes="$v_data_bytes"
+	fi
+
+	v_status="ok"
+	return 0
+}
+
+read_volume_to_file()
+{
+	local vol="$1" out_file="$2"
+	local dev_path="" actual_bytes=0
+
+	probe_volume "$vol" || return 1
+
+	dev_path="$DEV_DIR/$v_device"
+	if [ "$v_storage" = "mtd" ] && [ "$v_vol_type" = "mtd-nand" ]; then
+		if ! nanddump -q --bb=skipbad -l "$v_read_bytes" -f "$out_file" "$dev_path" 2>/dev/null; then
+			rm -f "$out_file"
+			v_status="read_error"
+			v_error="MTD NAND read failed for $vol"
+			return 1
+		fi
+	else
+		if ! head -c "$v_read_bytes" "$dev_path" > "$out_file" 2>/dev/null; then
+			rm -f "$out_file"
+			v_status="read_error"
+			v_error="Read failed from $dev_path"
+			return 1
+		fi
+	fi
+
+	actual_bytes="$(wc -c < "$out_file" 2>/dev/null || echo 0)"
+	case "$actual_bytes" in ''|*[!0-9]*) actual_bytes=0 ;; esac
+	if [ "$actual_bytes" -le 0 ] || [ "$actual_bytes" -ne "$v_read_bytes" ]; then
+		rm -f "$out_file"
+		v_status="read_error"
+		v_error="Short read for $vol ($actual_bytes/$v_read_bytes bytes)"
+		return 1
+	fi
+
+	return 0
+}
+
+cmd_status()
+{
+	local board_name_val="unknown" ubidev="" sysupgrade_ready=1 fip_nonempty=0
+	local vol="" missing_list=""
+
+	[ -r "$SYSINFO_DIR/board_name" ] && board_name_val="$(cat "$SYSINFO_DIR/board_name" 2>/dev/null || printf 'unknown')"
+	ubidev="$(nand_find_ubi "ubi" 2>/dev/null || true)"
+	[ -n "$ubidev" ] || sysupgrade_ready=0
+
+	json_init
+	json_add_string board_name "$board_name_val"
+	if [ -n "$ubidev" ]; then
+		json_add_boolean ubi_present 1
+		json_add_string ubi_device "$ubidev"
+	else
+		json_add_boolean ubi_present 0
+		json_add_string ubi_device ""
+	fi
+
+	json_add_array volumes
+	for vol in $CORE_VOLUMES; do
+		probe_volume "$vol" || true
+
+		if [ "$vol" = "fip" ] && [ "$v_present" -eq 1 ] && [ "$v_data_bytes" -gt 0 ]; then
+			fip_nonempty=1
+		fi
+		if [ "$v_storage" = "ubi" ] && [ "$v_status" != "ok" ]; then
+			sysupgrade_ready=0
+			missing_list="${missing_list:+$missing_list }$vol"
+		fi
+
+		json_add_object ""
+		json_add_string name "$v_name"
+		json_add_string role "$v_role"
+		json_add_boolean writable "$v_writable"
+		if [ "$v_storage" = "ubi" ]; then
+			json_add_boolean required_for_sysupgrade 1
+		else
+			json_add_boolean required_for_sysupgrade 0
+		fi
+		json_add_string storage "$v_storage"
+		json_add_string parent "$v_parent"
+		json_add_string device "$v_device"
+		json_add_boolean present "$v_present"
+		json_add_string volume_type "$v_vol_type"
+		json_add_int declared_size "$v_declared_size"
+		json_add_int reserved_bytes "$v_reserved_bytes"
+		json_add_int data_bytes "$v_data_bytes"
+		if [ "$v_status" = "ok" ]; then
+			json_add_boolean healthy 1
+		else
+			json_add_boolean healthy 0
+		fi
+		json_add_string status "$v_status"
+		json_add_string error "$v_error"
+		json_close_object
+	done
+	json_close_array
+
+	json_add_boolean fip_nonempty "$fip_nonempty"
+	json_add_boolean sysupgrade_ready "$sysupgrade_ready"
+	json_add_array missing_required
+	for vol in $missing_list; do
+		json_add_string "" "$vol"
+	done
+	json_close_array
+	json_dump
+}
+
+cmd_read()
+{
+	local target_name="$1" out_path="$2"
+
+	load_target "$target_name"
+	acquire_lock
+	trap cleanup EXIT
+	work="$(mktemp -d "$TMP_DIR/airoha-pon-data.XXXXXX")" || fail "Cannot create work directory"
+	chmod 0700 "$work"
+
+	read_volume_to_file "$target_name" "$work/$target_name.bin" || fail "${v_error:-Read failed}"
+	if [ -z "$out_path" ] || [ "$out_path" = "-" ]; then
+		cat "$work/$target_name.bin"
+	else
+		chmod 0600 "$work/$target_name.bin"
+		mv -f "$work/$target_name.bin" "$out_path" || fail "Cannot write output file"
+	fi
+}
+
+cmd_export()
+{
+	local target_name="$1" size=0 sha256=""
+
+	load_target "$target_name"
+	acquire_lock
+	trap cleanup EXIT
+	work="$(mktemp -d "$TMP_DIR/airoha-pon-data.XXXXXX")" || fail "Cannot create work directory"
+	chmod 0700 "$work"
+	rm -f "$EXPORT_FILE"
+
+	read_volume_to_file "$target_name" "$work/$target_name.bin" || fail "${v_error:-Read failed}"
+	size="$(wc -c < "$work/$target_name.bin")"
+	sha256="$(compute_sha256 "$work/$target_name.bin")"
+	chmod 0600 "$work/$target_name.bin"
+	mv -f "$work/$target_name.bin" "$EXPORT_FILE" || fail "Cannot publish exported board data"
+
+	json_init
+	json_add_string name "$target_name"
+	json_add_string storage "$v_storage"
+	json_add_string device "$v_device"
+	json_add_string path "$EXPORT_FILE"
+	json_add_int size "$size"
+	json_add_string sha256 "$sha256"
+	json_dump
+}
+
+cmd_backup()
+{
+	local board_id="unknown" model_name="unknown" generated_at=""
+	local vol="" ok_count=0 fail_count=0 total_count=5
+	local file_size=0 file_sha="-" file_name="-" note="-"
+	local integrity="complete" complete_bool=1
+	local archive_size=0 archive_sha=""
+	local vol_lines=""
+
+	acquire_lock
+	trap cleanup EXIT
+	work="$(mktemp -d "$TMP_DIR/airoha-pon-data.XXXXXX")" || fail "Cannot create work directory"
+	rm -f "$BACKUP_FILE"
+	mkdir -p "$work/bundle" || fail "Cannot create backup staging directory"
+	chmod 0700 "$work" "$work/bundle"
+
+	[ -r "$SYSINFO_DIR/board_name" ] && board_id="$(cat "$SYSINFO_DIR/board_name" 2>/dev/null || printf 'unknown')"
+	[ -r "$SYSINFO_DIR/model" ] && model_name="$(cat "$SYSINFO_DIR/model" 2>/dev/null || printf 'unknown')"
+	generated_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')"
+
+	set -- MANIFEST.txt
+	: > "$work/warnings.txt"
+	: > "$work/manifest_rows.tsv"
+
+	for vol in $CORE_VOLUMES; do
+		if read_volume_to_file "$vol" "$work/bundle/$vol.bin"; then
+			ok_count=$((ok_count + 1))
+			file_size="$(wc -c < "$work/bundle/$vol.bin")"
+			file_sha="$(compute_sha256 "$work/bundle/$vol.bin")"
+			file_name="$vol.bin"
+			note="-"
+			set -- "$@" "$file_name"
+		else
+			fail_count=$((fail_count + 1))
+			file_size=0
+			file_sha="-"
+			file_name="-"
+			note="${v_error:-unknown error}"
+			printf '%s (%s): %s\n' "$vol" "$v_status" "$note" >> "$work/warnings.txt"
+		fi
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+			"$vol" "$v_status" "$v_storage" "${v_device:--}" "${v_vol_type:--}" \
+			"$file_size" "$file_sha" "$file_name" "$note" >> "$work/manifest_rows.tsv"
+	done
+
+	if [ "$ok_count" -eq 0 ]; then
+		fail "All critical volumes failed or are missing; no backup archive created"
+	fi
+
+	if [ "$fail_count" -gt 0 ]; then
+		integrity="partial"
+		complete_bool=0
+	fi
+
+	{
+		printf '# NNRRWrt Critical UBI Volume Backup Manifest\n'
+		printf 'generated_at=%s\n' "$generated_at"
+		printf 'board_name=%s\n' "$board_id"
+		printf 'model=%s\n' "$model_name"
+		printf 'integrity=%s\n' "$integrity"
+		printf 'volumes_ok=%d/%d\n' "$ok_count" "$total_count"
+		printf 'excluded_volumes=bl2 (read-only boot partition intentionally excluded)\n'
+		printf '\n'
+		printf 'volume\tstatus\tstorage\tdevice\tvolume_type\tbytes\tsha256\tfile\tnote\n'
+		cat "$work/manifest_rows.tsv"
+	} > "$work/bundle/MANIFEST.txt"
+
+	tar -C "$work/bundle" -czf "$work/pon-ubi-backup.tar.gz" "$@" ||
+		fail "Failed to create backup archive"
+	chmod 0600 "$work/pon-ubi-backup.tar.gz"
+	mv -f "$work/pon-ubi-backup.tar.gz" "$BACKUP_FILE" ||
+		fail "Failed to publish backup archive"
+
+	archive_size="$(wc -c < "$BACKUP_FILE")"
+	archive_sha="$(compute_sha256 "$BACKUP_FILE")"
+
+	json_init
+	json_add_string path "$BACKUP_FILE"
+	json_add_int size "$archive_size"
+	json_add_string sha256 "$archive_sha"
+	json_add_string integrity "$integrity"
+	json_add_boolean complete "$complete_bool"
+	json_add_int ok_count "$ok_count"
+	json_add_int total_count "$total_count"
+
+	json_add_array warnings
+	while IFS= read -r vol_lines; do
+		[ -n "$vol_lines" ] || continue
+		json_add_string "" "$vol_lines"
+	done < "$work/warnings.txt"
+	json_close_array
+
+	json_add_array volumes
+	while IFS="$(printf '\t')" read -r v_n v_st v_stor v_dev v_vt v_sz v_sh v_fn v_nt; do
+		[ -n "$v_n" ] || continue
+		json_add_object ""
+		json_add_string name "$v_n"
+		json_add_string status "$v_st"
+		json_add_string storage "$v_stor"
+		json_add_string device "$v_dev"
+		json_add_string volume_type "$v_vt"
+		json_add_int bytes "$v_sz"
+		json_add_string sha256 "$v_sh"
+		json_add_string file "$v_fn"
+		json_add_string note "$v_nt"
+		json_close_object
+	done < "$work/manifest_rows.tsv"
+	json_close_array
+	json_dump
 }
 
 case "$1" in
 list)
 	[ "$#" -eq 1 ] || exit 2
-	jsonfilter -i /etc/board.json -e '@.pon_data' || printf '{}\n'
+	jsonfilter -i "$BOARD_JSON" -e '@.pon_data' || printf '{}\n'
+	exit 0
+	;;
+status|volumes)
+	[ "$#" -eq 1 ] || exit 2
+	cmd_status
+	exit 0
+	;;
+read)
+	[ "$#" -eq 2 ] || [ "$#" -eq 3 ] || exit 2
+	cmd_read "$2" "${3:-}"
+	exit 0
+	;;
+export)
+	[ "$#" -eq 2 ] || exit 2
+	cmd_export "$2"
+	exit 0
+	;;
+backup)
+	[ "$#" -eq 1 ] || exit 2
+	cmd_backup
 	exit 0
 	;;
 write)
@@ -110,16 +621,16 @@ write)
 	load_target "$2"
 	;;
 *)
-	echo "usage: airoha-pon-data list | write NAME" >&2
+	echo "usage: airoha-pon-data list | status | read NAME [OUT] | export NAME | backup | write NAME" >&2
 	exit 2
 	;;
 esac
 
-mkdir /tmp/airoha-pon-data.lock 2>/dev/null || fail "Another board data write is in progress"
-work=
+acquire_lock
 trap cleanup EXIT
-work="$(mktemp -d /tmp/airoha-pon-data.XXXXXX)" || fail "Cannot create work directory"
-mv /tmp/pon-board-data.bin "$work/input" || fail "Uploaded image is missing"
+work="$(mktemp -d "$TMP_DIR/airoha-pon-data.XXXXXX")" || fail "Cannot create work directory"
+chmod 0700 "$work"
+mv "$UPLOAD_FILE" "$work/input" || fail "Uploaded image is missing"
 length="$(wc -c < "$work/input")"
 [ "$length" -gt 0 ] && [ "$length" -le "$capacity" ] || fail "Invalid image size"
 locate_target

@@ -85,14 +85,218 @@ function parseStorageList(output) {
 	});
 }
 
+function downloadBlob(path, filename) {
+	return fs.read_direct(path, 'blob').then(function(blob) {
+		var url = window.URL.createObjectURL(blob);
+		var link = document.createElement('a');
+
+		link.style.display = 'none';
+		link.href = url;
+		link.download = filename;
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		window.URL.revokeObjectURL(url);
+	});
+}
+
+function formatVolumeRole(role) {
+	switch (role) {
+	case 'calibration': return _('Optical calibration');
+	case 'identity': return _('Board identity');
+	case 'bootloader': return _('Bootloader (BL31 / U-Boot)');
+	case 'ubootenv': return _('U-Boot environment');
+	case 'ubootenv_redundant': return _('U-Boot redundant environment');
+	default: return _('Board data');
+	}
+}
+
+function formatVolumeStatus(vol) {
+	if (vol.status === 'ok')
+		return _('OK');
+	if (vol.status === 'missing')
+		return _('Missing');
+	if (vol.error && vol.error.indexOf('empty') !== -1)
+		return _('Empty');
+	return _('Read error');
+}
+
+function formatVolumeStorage(vol) {
+	var details = [];
+
+	if (!vol.present)
+		return '%s (%s)'.format((vol.storage || 'ubi').toUpperCase(), _('Missing'));
+	if (vol.device)
+		details.push(vol.device);
+	if (vol.volume_type)
+		details.push(vol.volume_type);
+	return details.length
+		? '%s (%s)'.format((vol.storage || 'ubi').toUpperCase(), details.join(', '))
+		: (vol.storage || 'ubi').toUpperCase();
+}
+
+function formatVolumeBytes(vol) {
+	if (!vol.present)
+		return '-';
+	if (vol.reserved_bytes > 0)
+		return '%s / %s'.format(
+			formatStorageSize(vol.data_bytes || 0),
+			formatStorageSize(vol.reserved_bytes));
+	return formatStorageSize(vol.data_bytes || 0);
+}
+
 return view.extend({
 	load: function() {
-		return fs.exec('/usr/libexec/airoha-pon-data', [ 'list' ]).then(function(result) {
-			if (result.code != 0)
-				throw new Error(result.stderr || result.stdout || _('Unable to list storage.'));
+		return Promise.all([
+			fs.exec('/usr/libexec/airoha-pon-data', [ 'list' ]).then(function(result) {
+				if (result.code != 0)
+					throw new Error(result.stderr || result.stdout || _('Unable to list storage.'));
 
-			return parseStorageList(result.stdout);
+				return parseStorageList(result.stdout);
+			}),
+			fs.exec('/usr/libexec/airoha-pon-data', [ 'status' ]).then(function(result) {
+				if (result.code != 0)
+					return null;
+				try {
+					return JSON.parse(result.stdout);
+				} catch (e) {
+					return null;
+				}
+			}).catch(function() {
+				return null;
+			})
+		]);
+	},
+
+	handleBoardDataExport: function(storage, ev) {
+		var button = ev && ev.currentTarget ? ev.currentTarget : null;
+
+		if (button) {
+			button.disabled = true;
+			button.classList.add('spinning');
+		}
+		return fs.exec('/usr/libexec/airoha-pon-data', [ 'export', storage.id ]).then(function(result) {
+			if (result.code != 0)
+				throw new Error((result.stderr || result.stdout || _('Helper exited with status %d').format(result.code)).trim());
+			var meta;
+			try {
+				meta = JSON.parse(result.stdout);
+			} catch (e) {
+				throw new Error(result.stderr || _('Invalid JSON response from helper.'));
+			}
+
+			return downloadBlob(meta.path, storage.id + '.bin').then(function() {
+				ui.addNotification(null, E('p', [
+					_('Exported %s (%s).').format(storage.id + '.bin', formatStorageSize(meta.size)),
+					E('br'),
+					'SHA-256: ' + (meta.sha256 || '-')
+				]), 'info');
+			});
+		}).catch(function(error) {
+			ui.addNotification(null, E('p', [
+				_('Exporting %s failed: %s').format(storage.id, error.message)
+			]), 'danger');
+		}).finally(function() {
+			if (button) {
+				button.disabled = false;
+				button.classList.remove('spinning');
+			}
 		});
+	},
+
+	handleCriticalBackup: function(ev) {
+		var button = ev && ev.currentTarget ? ev.currentTarget : null;
+		var ts = new Date().toISOString().replace(/[:.]/g, '-');
+
+		if (button) {
+			button.disabled = true;
+			button.classList.add('spinning');
+		}
+		return fs.exec('/usr/libexec/airoha-pon-data', [ 'backup' ]).then(function(result) {
+			if (result.code != 0)
+				throw new Error((result.stderr || result.stdout || _('Helper exited with status %d').format(result.code)).trim());
+			var meta;
+			try {
+				meta = JSON.parse(result.stdout);
+			} catch (e) {
+				throw new Error(result.stderr || _('Invalid JSON response from helper.'));
+			}
+			var filename = meta.complete
+				? ('pon-ubi-backup-' + ts + '.tar.gz')
+				: ('pon-ubi-backup-partial-' + ts + '.tar.gz');
+
+			return downloadBlob(meta.path, filename).then(function() {
+				if (!meta.complete) {
+					ui.addNotification(null, E('p', [
+						_('Partial UBI backup downloaded (%d/%d volumes). Missing or unreadable volumes are recorded in MANIFEST.txt: %s')
+							.format(meta.ok_count, meta.total_count, (meta.warnings || []).join('; '))
+					]), 'warning');
+				} else {
+					ui.addNotification(null, E('p', [
+						_('Complete UBI backup downloaded (%d/%d volumes, %s).')
+							.format(meta.ok_count, meta.total_count, formatStorageSize(meta.size)),
+						E('br'),
+						'SHA-256: ' + (meta.sha256 || '-')
+					]), 'info');
+				}
+			});
+		}).catch(function(error) {
+			ui.addNotification(null, E('p', [
+				_('Creating critical UBI backup failed: %s').format(error.message)
+			]), 'danger');
+		}).finally(function() {
+			if (button) {
+				button.disabled = false;
+				button.classList.remove('spinning');
+			}
+		});
+	},
+
+	renderVolumeHealthSection: function(volumeStatus) {
+		if (!volumeStatus || !Array.isArray(volumeStatus.volumes))
+			return null;
+
+		var summaryClass = volumeStatus.sysupgrade_ready
+			? 'alert-message success'
+			: 'alert-message warning';
+		var summaryText = volumeStatus.sysupgrade_ready
+			? _('Sysupgrade UBI layout check passed: all critical volumes (bosa, ri, fip, ubootenv, ubootenv2) are present and FIP is non-empty.')
+			: _('Sysupgrade UBI layout check incomplete: missing or invalid volumes (%s). Repair the UBI layout before flashing.')
+				.format((volumeStatus.missing_required || []).join(', ') || _('unknown'));
+
+		var rows = [
+			E('tr', { 'class': 'tr table-titles' }, [
+				E('th', { 'class': 'th' }, _('Volume')),
+				E('th', { 'class': 'th' }, _('Purpose')),
+				E('th', { 'class': 'th' }, _('Access')),
+				E('th', { 'class': 'th' }, _('Storage')),
+				E('th', { 'class': 'th' }, _('Data / Reserved')),
+				E('th', { 'class': 'th' }, _('Status'))
+			])
+		];
+
+		volumeStatus.volumes.forEach(function(vol) {
+			var statusText = formatVolumeStatus(vol);
+			if (vol.status !== 'ok' && vol.error)
+				statusText += ' (' + vol.error + ')';
+
+			rows.push(E('tr', { 'class': 'tr' }, [
+				E('td', { 'class': 'td' }, E('strong', {}, vol.name)),
+				E('td', { 'class': 'td' }, formatVolumeRole(vol.role)),
+				E('td', { 'class': 'td' }, vol.writable ? _('Read / Write') : _('Read-only')),
+				E('td', { 'class': 'td' }, formatVolumeStorage(vol)),
+				E('td', { 'class': 'td' }, formatVolumeBytes(vol)),
+				E('td', { 'class': 'td' }, statusText)
+			]));
+		});
+
+		return E('div', { 'class': 'cbi-section' }, [
+			E('h3', {}, _('Critical UBI volume health')),
+			E('div', { 'class': 'cbi-section-descr' },
+				_('Read-only status of calibration, identity, bootloader and U-Boot environment volumes. The bl2 partition is intentionally excluded and stays read-only.')),
+			E('div', { 'class': summaryClass }, summaryText),
+			E('table', { 'class': 'table' }, rows)
+		]);
 	},
 
 	handleBoardDataUpload: function(storages, selector) {
@@ -118,7 +322,9 @@ return view.extend({
 		});
 	},
 
-	render: function(storages) {
+	render: function(loaded) {
+		var storages = loaded[0] || [];
+		var volumeStatus = loaded[1] || null;
 		var m, s, o, selector;
 
 		m = new form.Map('pon', _('PON'),
@@ -286,30 +492,61 @@ return view.extend({
 		o.datatype = 'range(1,64)';
 
 		return m.render().then(L.bind(function(map) {
-			if (!storages.length)
-				return map;
+			var sections = [ map ];
+			var healthCard = this.renderVolumeHealthSection(volumeStatus);
+			var boardRows = [];
 
-			selector = E('select', { 'class': 'cbi-input-select' },
-				storages.map(function(storage, index) {
-					return E('option', { 'value': String(index) }, storage.label);
-				}));
+			if (healthCard)
+				sections.push(healthCard);
 
-			return E([], [ map,
-				E('div', { 'class': 'cbi-section' }, [
-					E('h3', {}, _('PON board data')),
-					E('div', { 'class': 'cbi-value' }, [
-						E('label', { 'class': 'cbi-value-title' }, _('Target storage')),
-						E('div', { 'class': 'cbi-value-field' }, [
-							selector,
-							E('button', {
-								'class': 'cbi-button cbi-button-action',
-								'disabled': m.readonly || null,
-								'click': ui.createHandlerFn(this, 'handleBoardDataUpload', storages, selector)
-							}, [ _('Upload and write') ])
-						])
+			if (storages.length) {
+				selector = E('select', { 'class': 'cbi-input-select' },
+					storages.map(function(storage, index) {
+						return E('option', { 'value': String(index) }, storage.label);
+					}));
+
+				boardRows.push(E('div', { 'class': 'cbi-value' }, [
+					E('label', { 'class': 'cbi-value-title' }, _('Target storage')),
+					E('div', { 'class': 'cbi-value-field' }, [
+						selector,
+						E('button', {
+							'class': 'cbi-button cbi-button-action',
+							'disabled': m.readonly || null,
+							'click': ui.createHandlerFn(this, 'handleBoardDataUpload', storages, selector)
+						}, [ _('Upload and write') ])
 					])
+				]));
+
+				boardRows.push(E('div', { 'class': 'cbi-value' }, [
+					E('label', { 'class': 'cbi-value-title' }, _('Single volume export (read-only)')),
+					E('div', { 'class': 'cbi-value-field' },
+						storages.map(L.bind(function(storage) {
+							return E('button', {
+								'class': 'cbi-button cbi-button-neutral',
+								'style': 'margin-right: 0.5em;',
+								'click': ui.createHandlerFn(this, 'handleBoardDataExport', storage)
+							}, [ _('Download %s').format(storage.id + '.bin') ]);
+						}, this))
+					)
+				]));
+			}
+
+			boardRows.push(E('div', { 'class': 'cbi-value' }, [
+				E('label', { 'class': 'cbi-value-title' }, _('Full critical UBI backup')),
+				E('div', { 'class': 'cbi-value-field' }, [
+					E('button', {
+						'class': 'cbi-button cbi-button-apply',
+						'click': ui.createHandlerFn(this, 'handleCriticalBackup')
+					}, [ _('Download full UBI backup (.tar.gz)') ]),
+					E('div', { 'class': 'cbi-value-description' },
+						_('Archives bosa, ri, fip, ubootenv and ubootenv2 (read-only, excluding bl2) with SHA-256 MANIFEST.txt. If any volume is missing or unreadable, available volumes are still included with a warning.'))
 				])
-			]);
+			]));
+
+			sections.push(E('div', { 'class': 'cbi-section' },
+				[ E('h3', {}, _('PON board data')) ].concat(boardRows)));
+
+			return E([], sections);
 		}, this));
 	}
 });
