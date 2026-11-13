@@ -1,0 +1,14 @@
+{
+	"admin/network/tr069_fake": {
+		"title": "TR-069 Fake",
+		"order": 87,
+		"action": {
+			"type": "view",
+			"path": "tr069_fake/config"
+		},
+		"depends": {
+			"acl": [ "luci-app-tr069-fake" ],
+			"uci": { "tr069_fake": true }
+		}
+	}
+}

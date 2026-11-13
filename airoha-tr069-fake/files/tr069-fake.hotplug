@@ -1,0 +1,88 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+case "$ACTION" in
+	ifup|ifupdate|ifdown) ;;
+	*) exit 0 ;;
+esac
+
+. /usr/share/libubox/jshn.sh
+
+find_default_nexthop() {
+	local want_target="$1"
+	local idx=1 target mask nh
+	while json_is_a "$idx" object; do
+		json_select "$idx"
+		json_get_var target target
+		json_get_var mask mask
+		json_get_var nh nexthop
+		json_select ..
+		if [ "$target" = "$want_target" ] && [ "${mask:-0}" = "0" ] && [ -n "$nh" ]; then
+			printf '%s' "$nh"
+			return 0
+		fi
+		idx=$((idx + 1))
+	done
+	return 1
+}
+
+extract_default_nexthop() {
+	local want_target="$1"
+	local nh=""
+	if json_is_a route array; then
+		json_select route
+		nh="$(find_default_nexthop "$want_target" || true)"
+		json_select ..
+	fi
+	if [ -z "$nh" ] && json_is_a inactive object; then
+		json_select inactive
+		if json_is_a route array; then
+			json_select route
+			nh="$(find_default_nexthop "$want_target" || true)"
+			json_select ..
+		fi
+		json_select ..
+	fi
+	[ -n "$nh" ] && printf '%s' "$nh"
+}
+
+case "$INTERFACE" in
+	tr069)
+		table="$(uci -q get tr069_fake.main.ip4table || echo 169)"
+		if [ "$ACTION" = "ifdown" ]; then
+			ip -4 route del default table "$table" 2>/dev/null || true
+			exit 0
+		fi
+		status="$(ubus call network.interface.tr069 status 2>/dev/null)" || exit 0
+		json_init
+		json_load "$status" 2>/dev/null || exit 0
+		json_get_var dev l3_device
+		[ -n "$dev" ] || exit 0
+		gw="$(extract_default_nexthop "0.0.0.0" || true)"
+		if [ -z "$gw" ] && json_is_a data object; then
+			json_select data
+			json_get_var gw gateway
+			json_select ..
+		fi
+		if [ -n "$gw" ]; then
+			ip -4 route replace default via "$gw" dev "$dev" table "$table" 2>/dev/null || true
+		fi
+		;;
+	tr069_6)
+		table="$(uci -q get tr069_fake.main.ip6table || echo 169)"
+		if [ "$ACTION" = "ifdown" ]; then
+			ip -6 route del default table "$table" 2>/dev/null || true
+			exit 0
+		fi
+		status="$(ubus call network.interface.tr069_6 status 2>/dev/null)" || exit 0
+		json_init
+		json_load "$status" 2>/dev/null || exit 0
+		json_get_var dev l3_device
+		[ -n "$dev" ] || exit 0
+		nh="$(extract_default_nexthop "::" || true)"
+		if [ -n "$nh" ]; then
+			ip -6 route replace default via "$nh" dev "$dev" table "$table" 2>/dev/null || true
+		fi
+		;;
+esac
+exit 0

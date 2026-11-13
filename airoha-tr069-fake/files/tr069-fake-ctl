@@ -1,0 +1,46 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+RUNTIME_JSON="/tmp/tr069-fake-runtime.json"
+CONTROL_SOCK="/var/run/airoha-tr069-fake.sock"
+AUDIT_LOG="/tmp/tr069-fake.log"
+
+case "$1" in
+	status)
+		pon_line="$(uci -q get tr069_fake.main.pon_line 2>/dev/null || echo line0)"
+		/usr/sbin/airoha-tr069-fake --config "$RUNTIME_JSON" --sock "$CONTROL_SOCK" --pon-line "$pon_line" dump-status
+		;;
+	model)
+		/usr/sbin/airoha-tr069-fake --config "$RUNTIME_JSON" dump-model
+		;;
+	trigger-inform)
+		if [ -S "$CONTROL_SOCK" ]; then
+			/usr/sbin/airoha-tr069-fake --sock "$CONTROL_SOCK" trigger-inform
+		else
+			/usr/sbin/airoha-tr069-fake --config "$RUNTIME_JSON" inform-once
+		fi
+		;;
+	reset-virtual)
+		/usr/sbin/airoha-tr069-fake --config "$RUNTIME_JSON" reset-virtual
+		;;
+	apply-overlay)
+		/usr/libexec/tr069-fake-apply reload >/dev/null 2>&1 || true
+		/usr/sbin/airoha-tr069-fake --config "$RUNTIME_JSON" apply-overlay
+		;;
+	set-param)
+		[ -n "$2" ] || exit 2
+		/usr/sbin/airoha-tr069-fake --config "$RUNTIME_JSON" set-param --param "$2" "$3"
+		;;
+	logs)
+		if [ -f "$AUDIT_LOG" ]; then
+			cat "$AUDIT_LOG"
+		fi
+		;;
+	clear-log)
+		/usr/sbin/airoha-tr069-fake --config "$RUNTIME_JSON" clear-log
+		;;
+	*)
+		echo "usage: tr069-fake-ctl status|model|trigger-inform|reset-virtual|apply-overlay|set-param NAME VAL|logs|clear-log" >&2
+		exit 2
+		;;
+esac

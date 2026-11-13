@@ -1,0 +1,282 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-app-tr069-fake 0.1.0\n"
+"POT-Creation-Date: 2026-11-13 00:00+0800\n"
+"PO-Revision-Date: 2026-11-13 00:00+0800\n"
+"Last-Translator: grislux55 <jebchou.hg@gmail.com>\n"
+"Language-Team: Chinese (Simplified)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh_Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "TR-069 Fake"
+msgstr "TR-069 伪装客户端"
+
+msgid "TR-069 Fake Sandbox"
+msgstr "TR-069 隔离伪装沙盒"
+
+msgid "Dual-stack isolated CWMP fake client with persistent virtual TR-098/TR-181 model and optional OMCI parameter linkage."
+msgstr "支持 IPv4/IPv6 双栈隔离通道、持久化 TR-098/TR-181 虚拟模型及可选 OMCI 参数联动的 CWMP 伪装沙盒客户端。"
+
+msgid "Sandbox & Dual-Stack Channel Status"
+msgstr "沙盒与双栈隔离通道状态"
+
+msgid "TR-069 Fake isolates CWMP traffic inside dedicated netifd routing tables and firewall zone tr069. Remote ACS commands never reboot, flash, or alter host system files."
+msgstr "TR-069 伪装客户端将 CWMP 流量严格隔离在独立 netifd 路由表与 tr069 防火墙区域内。远端 ACS 下发的命令绝不会重启设备、刷写固件或修改宿主系统配置。"
+
+msgid "Daemon Status"
+msgstr "守护进程状态"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "Isolated IPv4 (tr069)"
+msgstr "隔离通道 IPv4 (tr069)"
+
+msgid "Isolated IPv6 (tr069_6)"
+msgstr "隔离通道 IPv6 (tr069_6)"
+
+msgid "Virtual SoftwareVersion"
+msgstr "虚拟软件版本"
+
+msgid "Virtual Boot Epoch"
+msgstr "虚拟重启计数"
+
+msgid "OMCI Exported Snapshot (Manual Priority)"
+msgstr "OMCI 导出快照（手动配置优先）"
+
+msgid "Unavailable"
+msgstr "暂无数据"
+
+msgid "VLAN: %s | ACS: %s"
+msgstr "VLAN: %s | ACS: %s"
+
+msgid "Down"
+msgstr "未连接"
+
+msgid "Up (no address)"
+msgstr "已启动（无地址）"
+
+msgid "Trigger Inform"
+msgstr "手动触发 Inform"
+
+msgid "Inform triggered on isolated channel."
+msgstr "已通过隔离通道触发 Inform 上报。"
+
+msgid "Inform trigger failed"
+msgstr "触发 Inform 失败"
+
+msgid "Reset Virtual State"
+msgstr "重置虚拟状态"
+
+msgid "Reset persisted CWMP virtual model and pending events back to local template? System settings will NOT be altered."
+msgstr "确定将持久化 CWMP 虚拟模型与待上报事件重置为本地初始模板吗？系统真实配置不会被修改。"
+
+msgid "Virtual CWMP model reset to local template."
+msgstr "虚拟 CWMP 模型已重置为本地初始模板。"
+
+msgid "Reset virtual state failed"
+msgstr "重置虚拟状态失败"
+
+msgid "Initial Template vs Persisted Virtual Model"
+msgstr "初始模板与当前持久化虚拟模型对照"
+
+msgid "Passwords are masked. Modified values reflect last-write-wins updates from either ACS SetParameterValues or LuCI."
+msgstr "密码字段已密文脱敏；加粗项表示经过 ACS SetParameterValues 或 LuCI 最后写入生效后的当前虚拟值。"
+
+msgid "Parameter Path"
+msgstr "参数路径"
+
+msgid "Initial Template"
+msgstr "初始模板值"
+
+msgid "Current Virtual Value"
+msgstr "当前虚拟值"
+
+msgid "Sanitized /tmp Ring Audit Log"
+msgstr "/tmp 内存环形脱敏审计日志"
+
+msgid "Stored exclusively in /tmp memory with automatic secret redaction; never written to NAND flash."
+msgstr "仅保存在 /tmp 内存中并自动脱敏密码与认证凭据，绝不写入 NAND 闪存。"
+
+msgid "Clear /tmp Audit Log"
+msgstr "清空 /tmp 审计日志"
+
+msgid "(empty)"
+msgstr "（空）"
+
+msgid "Configuration"
+msgstr "基础与隔离配置"
+
+msgid "Isolated Channel"
+msgstr "双栈隔离通道"
+
+msgid "ACS & ConnectionRequest"
+msgstr "ACS 与反向连接"
+
+msgid "Fake Fingerprint"
+msgstr "伪装设备指纹"
+
+msgid "Enable TR-069 Fake"
+msgstr "启用 TR-069 伪装客户端"
+
+msgid "Sync Empty Fields from OMCI"
+msgstr "从 OMCI 自动补全留空字段"
+
+msgid "Read ME 134/136/340/347 exported defaults from airoha-pond; manually configured fields always take precedence."
+msgstr "从 airoha-pond 读取 OMCI ME 134/136/340/347 导出参数；任意手动填写的字段始终优先生效。"
+
+msgid "PON Line"
+msgstr "PON 线路名称"
+
+msgid "Uplink Device"
+msgstr "上行物理设备"
+
+msgid "Management VLAN ID"
+msgstr "管理 VLAN ID"
+
+msgid "Optional 802.1Q VLAN ID (1-4094). Leave empty to use OMCI management VLAN when sync is enabled."
+msgstr "可选 802.1Q VLAN ID（1-4094）；留空且开启 OMCI 同步时自动采用 OMCI 导出管理 VLAN。"
+
+msgid "Cloned MAC Address"
+msgstr "独立克隆 MAC 地址"
+
+msgid "DHCPv4 Option 60 (Vendor ID)"
+msgstr "DHCPv4 Option 60（厂商标识）"
+
+msgid "IPv4 Mode"
+msgstr "IPv4 获取方式"
+
+msgid "DHCPv4"
+msgstr "DHCPv4"
+
+msgid "Static"
+msgstr "静态配置"
+
+msgid "Disabled"
+msgstr "禁用"
+
+msgid "IPv4 Address"
+msgstr "IPv4 地址"
+
+msgid "IPv4 Netmask"
+msgstr "IPv4 子网掩码"
+
+msgid "IPv4 Gateway"
+msgstr "IPv4 网关"
+
+msgid "IPv4 DNS"
+msgstr "IPv4 DNS 服务器"
+
+msgid "IPv6 Mode"
+msgstr "IPv6 获取方式"
+
+msgid "DHCPv6 + RA"
+msgstr "DHCPv6 + RA"
+
+msgid "SLAAC / RA"
+msgstr "SLAAC / RA 无状态"
+
+msgid "IPv6 Address/Prefix"
+msgstr "IPv6 地址/前缀"
+
+msgid "IPv6 Gateway"
+msgstr "IPv6 网关"
+
+msgid "IPv6 DNS"
+msgstr "IPv6 DNS 服务器"
+
+msgid "Isolated IPv4 Routing Table"
+msgstr "独立 IPv4 策略路由表"
+
+msgid "Isolated IPv6 Routing Table"
+msgstr "独立 IPv6 策略路由表"
+
+msgid "ACS URL"
+msgstr "ACS 服务器地址"
+
+msgid "ACS Username"
+msgstr "ACS 用户名"
+
+msgid "ACS Password"
+msgstr "ACS 密码"
+
+msgid "Allow Self-Signed ACS TLS Certificate"
+msgstr "允许自签或专网 HTTPS 证书"
+
+msgid "Enable Periodic Inform"
+msgstr "启用周期性 Inform"
+
+msgid "Periodic Inform Interval (s)"
+msgstr "周期性 Inform 间隔（秒）"
+
+msgid "Enable ConnectionRequest Listener"
+msgstr "启用反向连接（ConnectionRequest）监听"
+
+msgid "Binds strictly to the isolated tr069 interface IPv4/IPv6 addresses (never wildcard 0.0.0.0 or ::)."
+msgstr "仅严格绑定到隔离口 tr069 当前 IPv4/IPv6 地址，绝不监听通配地址 0.0.0.0 或 ::。"
+
+msgid "ConnectionRequest Port"
+msgstr "ConnectionRequest 端口"
+
+msgid "ConnectionRequest Path"
+msgstr "ConnectionRequest 路径"
+
+msgid "ConnectionRequest Username"
+msgstr "ConnectionRequest 用户名"
+
+msgid "ConnectionRequest Password"
+msgstr "ConnectionRequest 密码"
+
+msgid "Allowed ACS Source IPs/CIDRs"
+msgstr "允许入站的 ACS 源 IP/网段"
+
+msgid "Optional space-separated allowlist for ConnectionRequest ingress inside zone tr069."
+msgstr "可选，以空格分隔；仅允许指定 ACS 源地址访问 tr069 防火墙区域下的反向连接端口。"
+
+msgid "Manufacturer"
+msgstr "厂商名称（Manufacturer）"
+
+msgid "Manufacturer OUI"
+msgstr "厂商 OUI"
+
+msgid "ProductClass"
+msgstr "设备型号（ProductClass）"
+
+msgid "SerialNumber"
+msgstr "设备序列号（SerialNumber）"
+
+msgid "HardwareVersion"
+msgstr "硬件版本（HardwareVersion）"
+
+msgid "SoftwareVersion"
+msgstr "初始软件版本（SoftwareVersion）"
+
+msgid "Custom CWMP Parameters (TR-098 / TR-181 KV)"
+msgstr "自定义 CWMP 参数字典（TR-098 / TR-181）"
+
+msgid "Extra writable parameters exposed in the virtual model."
+msgstr "向虚拟模型追加可读写自定义节点。"
+
+msgid "Value"
+msgstr "参数值"
+
+msgid "Virtual Firmware Download Mappings"
+msgstr "虚拟固件下载版本映射表"
+
+msgid "Virtual Download RPC matches URL substring and updates SoftwareVersion without downloading or flashing real firmware."
+msgstr "收到 ACS Download RPC 时仅按 URL 子串匹配更新虚拟 SoftwareVersion，绝不下载或刷写真实固件。"
+
+msgid "URL / Filename Match"
+msgstr "URL / 文件名匹配标识"
+
+msgid "FileType (optional)"
+msgstr "文件类型 FileType（可选）"
+
+msgid "Target Virtual SoftwareVersion"
+msgstr "目标虚拟软件版本"

@@ -1,0 +1,40 @@
+[package]
+name = "airoha-tr069-fake"
+version = "0.1.0"
+edition = "2021"
+authors = ["grislux55 <jebchou.hg@gmail.com>"]
+license = "GPL-2.0-only"
+repository = "https://github.com/grislux55/openwrt-pon-userspace"
+description = "Dual-stack isolated TR-069 CWMP Fake sandbox daemon"
+autobins = false
+
+[dependencies]
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+roxmltree = "0.20"
+quick-xml = "0.37"
+httparse = "1.10"
+digest_auth = "0.3"
+openssl = { version = "0.10", default-features = false }
+md-5 = "0.10"
+sha2 = "0.10"
+base64 = "0.22"
+getrandom = "0.3"
+hickory-proto = { version = "0.24", default-features = false }
+url = "2"
+
+[[bin]]
+name = "airoha-tr069-fake"
+path = "src/main.rs"
+
+[lib]
+name = "airoha_tr069_fake"
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

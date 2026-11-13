@@ -1,0 +1,413 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+. /lib/functions.sh
+. /usr/share/libubox/jshn.sh
+
+ACTION="${1:-reload}"
+RUNTIME_JSON="/tmp/tr069-fake-runtime.json"
+NET_DIRTY=0
+FW_DIRTY=0
+
+fail() {
+	logger -t tr069-fake "$*"
+	echo "tr069-fake: $*" >&2
+	exit 1
+}
+
+validate_ifname() {
+	local name="$1"
+	[ -n "$name" ] || return 1
+	[ "${#name}" -le 15 ] || return 1
+	case "$name" in
+		*[!A-Za-z0-9_.:-]*) return 1 ;;
+	esac
+	return 0
+}
+
+validate_vlan() {
+	local vid="$1"
+	case "$vid" in
+		''|*[!0-9]*) return 1 ;;
+	esac
+	[ "$vid" -ge 1 ] && [ "$vid" -le 4094 ]
+}
+
+validate_pon_line() {
+	local line="$1"
+	[ -n "$line" ] || return 1
+	case "$line" in
+		*[!A-Za-z0-9_-]*) return 1 ;;
+	esac
+	return 0
+}
+
+validate_uint() {
+	local val="$1"
+	case "$val" in
+		''|*[!0-9]*) return 1 ;;
+	esac
+	return 0
+}
+
+read_omci_fallback() {
+	local snap="/tmp/airoha-pond-tr069.${PON_LINE}.json"
+	OMCI_VLAN=""
+	OMCI_MAC=""
+	OMCI_ACS_URL=""
+	OMCI_ACS_USER=""
+	OMCI_ACS_PASS=""
+
+	[ "$OMCI_SYNC" -eq 1 ] || return 0
+	[ -f "$snap" ] || return 0
+
+	json_init
+	json_load_file "$snap" 2>/dev/null || return 0
+	json_get_var OMCI_VLAN management_vlan
+	if json_is_a ipv4_hosts array; then
+		json_select ipv4_hosts
+		if json_is_a 1 object; then
+			json_select 1
+			json_get_var OMCI_MAC mac_address
+			json_select ..
+		fi
+		json_select ..
+	fi
+	[ "$OMCI_MAC" = "00:00:00:00:00:00" ] && OMCI_MAC=""
+	if [ -z "$OMCI_MAC" ] && json_is_a ipv6_hosts array; then
+		json_select ipv6_hosts
+		if json_is_a 1 object; then
+			json_select 1
+			json_get_var OMCI_MAC mac_address
+			json_select ..
+		fi
+		json_select ..
+	fi
+	if json_is_a tr069_servers array; then
+		json_select tr069_servers
+		if json_is_a 1 object; then
+			json_select 1
+			json_get_var OMCI_ACS_URL acs_url
+			json_get_var OMCI_ACS_USER acs_username
+			json_get_var OMCI_ACS_PASS acs_password
+			json_select ..
+		fi
+		json_select ..
+	fi
+	[ "$OMCI_MAC" = "00:00:00:00:00:00" ] && OMCI_MAC=""
+	[ "$OMCI_VLAN" = "null" ] && OMCI_VLAN=""
+	return 0
+}
+
+load_config() {
+	config_load tr069_fake
+	config_get_bool ENABLED main enabled 0
+	config_get_bool OMCI_SYNC main omci_sync 0
+	config_get PON_LINE main pon_line "line0"
+	config_get UPLINK main uplink "pon0"
+	config_get VLAN_ID main vlan_id ""
+	config_get MACADDR main macaddr ""
+	config_get OPTION60 main option60 ""
+	config_get IPV4_MODE main ipv4_mode "dhcp"
+	config_get IPV4_ADDR main ipv4_addr ""
+	config_get IPV4_MASK main ipv4_mask ""
+	config_get IPV4_GW main ipv4_gw ""
+	config_get IPV4_DNS main ipv4_dns ""
+	config_get IPV6_MODE main ipv6_mode "dhcpv6"
+	config_get IPV6_ADDR main ipv6_addr ""
+	config_get IPV6_GW main ipv6_gw ""
+	config_get IPV6_DNS main ipv6_dns ""
+	config_get IP4TABLE main ip4table "169"
+	config_get IP6TABLE main ip6table "169"
+	config_get ACS_URL main acs_url "http://acs.example.invalid:9090/acs"
+	config_get ACS_USER main acs_username ""
+	config_get ACS_PASS main acs_password ""
+	config_get_bool INSECURE_TLS main insecure_tls 0
+	config_get_bool PERIODIC_EN main periodic_inform_enable 1
+	config_get PERIODIC_INT main periodic_inform_interval "43200"
+	config_get_bool CONN_REQ_EN main conn_req_enable 0
+	config_get CONN_REQ_PORT main conn_req_port "7547"
+	config_get CONN_REQ_PATH main conn_req_path "/tr069"
+	config_get CONN_REQ_USER main conn_req_username ""
+	config_get CONN_REQ_PASS main conn_req_password ""
+	config_get CONN_REQ_ALLOWED main conn_req_allowed_ips ""
+	config_get MANUFACTURER main manufacturer ""
+	config_get OUI main oui ""
+	config_get PRODUCT_CLASS main product_class ""
+	config_get SERIAL_NUMBER main serial_number ""
+	config_get HW_VER main hardware_version ""
+	config_get SW_VER main software_version ""
+
+	[ "$ACTION" = "stop" ] && ENABLED=0
+	validate_pon_line "$PON_LINE" || fail "Invalid pon_line: $PON_LINE"
+	validate_uint "$IP4TABLE" || IP4TABLE="169"
+	validate_uint "$IP6TABLE" || IP6TABLE="169"
+	if ! validate_uint "$PERIODIC_INT" || [ "$PERIODIC_INT" -lt 10 ]; then
+		PERIODIC_INT="43200"
+	fi
+	if ! validate_uint "$CONN_REQ_PORT" || [ "$CONN_REQ_PORT" -lt 1 ] || [ "$CONN_REQ_PORT" -gt 65535 ]; then
+		CONN_REQ_PORT="7547"
+	fi
+
+	read_omci_fallback
+
+	EFF_VLAN="$VLAN_ID"
+	[ -n "$EFF_VLAN" ] || EFF_VLAN="$OMCI_VLAN"
+	EFF_MAC="$MACADDR"
+	[ -n "$EFF_MAC" ] || EFF_MAC="$OMCI_MAC"
+	EFF_ACS_URL="$ACS_URL"
+	if [ -z "$EFF_ACS_URL" ] || [ "$EFF_ACS_URL" = "http://acs.example.invalid:9090/acs" ]; then
+		[ -n "$OMCI_ACS_URL" ] && EFF_ACS_URL="$OMCI_ACS_URL"
+	fi
+	EFF_ACS_USER="$ACS_USER"
+	[ -n "$EFF_ACS_USER" ] || EFF_ACS_USER="$OMCI_ACS_USER"
+	EFF_ACS_PASS="$ACS_PASS"
+	[ -n "$EFF_ACS_PASS" ] || EFF_ACS_PASS="$OMCI_ACS_PASS"
+}
+
+remove_managed_network() {
+	local sec
+	for sec in tr069_dev tr069 tr069_6 tr069_rule4 tr069_rule6; do
+		if uci -q get "network.$sec" >/dev/null; then
+			uci -q delete "network.$sec" && NET_DIRTY=1
+		fi
+	done
+}
+
+remove_managed_firewall() {
+	local sec
+	for sec in tr069_zone tr069_dhcpv6 tr069_icmpv6 tr069_connreq; do
+		if uci -q get "firewall.$sec" >/dev/null; then
+			uci -q delete "firewall.$sec" && FW_DIRTY=1
+		fi
+	done
+}
+
+apply_network() {
+	local target_dev
+
+	remove_managed_network
+
+	if [ "$ENABLED" -eq 1 ]; then
+		NET_DIRTY=1
+		validate_ifname "$UPLINK" || fail "Invalid uplink device: $UPLINK"
+		target_dev="$UPLINK"
+
+		if [ -n "$EFF_VLAN" ]; then
+			validate_vlan "$EFF_VLAN" || fail "Invalid management VLAN: $EFF_VLAN"
+			target_dev="tr069-if"
+			uci set network.tr069_dev='device'
+			uci set network.tr069_dev.type='8021q'
+			uci set network.tr069_dev.ifname="$UPLINK"
+			uci set network.tr069_dev.vid="$EFF_VLAN"
+			uci set network.tr069_dev.name="$target_dev"
+			[ -n "$EFF_MAC" ] && uci set network.tr069_dev.macaddr="$EFF_MAC"
+		elif [ -n "$EFF_MAC" ]; then
+			target_dev="tr069-if"
+			uci set network.tr069_dev='device'
+			uci set network.tr069_dev.type='macvlan'
+			uci set network.tr069_dev.ifname="$UPLINK"
+			uci set network.tr069_dev.mode='bridge'
+			uci set network.tr069_dev.name="$target_dev"
+			uci set network.tr069_dev.macaddr="$EFF_MAC"
+		fi
+		TR069_IFNAME="$target_dev"
+
+		uci set network.tr069='interface'
+		uci set network.tr069.device="$target_dev"
+		uci set network.tr069.defaultroute='0'
+		uci set network.tr069.peerdns='0'
+		uci set network.tr069.ip4table="$IP4TABLE"
+		uci set network.tr069.delegate='0'
+		case "$IPV4_MODE" in
+			static)
+				uci set network.tr069.proto='static'
+				uci set network.tr069.ipaddr="$IPV4_ADDR"
+				[ -n "$IPV4_MASK" ] && uci set network.tr069.netmask="$IPV4_MASK"
+				[ -n "$IPV4_GW" ] && uci set network.tr069.gateway="$IPV4_GW"
+				[ -n "$IPV4_DNS" ] && uci set network.tr069.dns="$IPV4_DNS"
+				;;
+			none)
+				uci set network.tr069.proto='none'
+				;;
+			*)
+				uci set network.tr069.proto='dhcp'
+				[ -n "$OPTION60" ] && uci set network.tr069.vendorid="$OPTION60"
+				;;
+		esac
+
+		if [ "$IPV6_MODE" != "none" ]; then
+			uci set network.tr069_6='interface'
+			uci set network.tr069_6.device="$target_dev"
+			uci set network.tr069_6.defaultroute='0'
+			uci set network.tr069_6.peerdns='0'
+			uci set network.tr069_6.ip6table="$IP6TABLE"
+			uci set network.tr069_6.delegate='0'
+			uci set network.tr069_6.sourcefilter='0'
+			case "$IPV6_MODE" in
+				static)
+					uci set network.tr069_6.proto='static'
+					[ -n "$IPV6_ADDR" ] && uci set network.tr069_6.ip6addr="$IPV6_ADDR"
+					[ -n "$IPV6_GW" ] && uci set network.tr069_6.ip6gw="$IPV6_GW"
+					[ -n "$IPV6_DNS" ] && uci set network.tr069_6.dns="$IPV6_DNS"
+					;;
+				slaac)
+					uci set network.tr069_6.proto='dhcpv6'
+					uci set network.tr069_6.reqaddress='none'
+					uci set network.tr069_6.reqprefix='no'
+					;;
+				*)
+					uci set network.tr069_6.proto='dhcpv6'
+					uci set network.tr069_6.reqaddress='try'
+					uci set network.tr069_6.reqprefix='no'
+					;;
+			esac
+		fi
+	else
+		TR069_IFNAME=""
+	fi
+
+	if [ "$NET_DIRTY" -eq 1 ]; then
+		uci commit network || fail "Failed to commit network config"
+	fi
+}
+
+apply_firewall() {
+	local ip
+
+	remove_managed_firewall
+
+	if [ "$ENABLED" -eq 1 ]; then
+		FW_DIRTY=1
+		uci set firewall.tr069_zone='zone'
+		uci set firewall.tr069_zone.name='tr069'
+		uci add_list firewall.tr069_zone.network='tr069'
+		[ "$IPV6_MODE" != "none" ] && uci add_list firewall.tr069_zone.network='tr069_6'
+		uci set firewall.tr069_zone.input='REJECT'
+		uci set firewall.tr069_zone.output='ACCEPT'
+		uci set firewall.tr069_zone.forward='REJECT'
+		uci set firewall.tr069_zone.masq='0'
+		uci set firewall.tr069_zone.mtu_fix='1'
+
+		uci set firewall.tr069_dhcpv6='rule'
+		uci set firewall.tr069_dhcpv6.name='Allow-TR069-DHCPv6'
+		uci set firewall.tr069_dhcpv6.src='tr069'
+		uci set firewall.tr069_dhcpv6.proto='udp'
+		uci set firewall.tr069_dhcpv6.dest_port='546'
+		uci set firewall.tr069_dhcpv6.family='ipv6'
+		uci set firewall.tr069_dhcpv6.target='ACCEPT'
+
+		uci set firewall.tr069_icmpv6='rule'
+		uci set firewall.tr069_icmpv6.name='Allow-TR069-ICMPv6-RA'
+		uci set firewall.tr069_icmpv6.src='tr069'
+		uci set firewall.tr069_icmpv6.proto='icmp'
+		uci set firewall.tr069_icmpv6.family='ipv6'
+		uci add_list firewall.tr069_icmpv6.icmp_type='router-solicitation'
+		uci add_list firewall.tr069_icmpv6.icmp_type='router-advertisement'
+		uci add_list firewall.tr069_icmpv6.icmp_type='neighbour-solicitation'
+		uci add_list firewall.tr069_icmpv6.icmp_type='neighbour-advertisement'
+		uci set firewall.tr069_icmpv6.target='ACCEPT'
+
+		if [ "$CONN_REQ_EN" -eq 1 ]; then
+			uci set firewall.tr069_connreq='rule'
+			uci set firewall.tr069_connreq.name='Allow-TR069-ConnectionRequest'
+			uci set firewall.tr069_connreq.src='tr069'
+			uci set firewall.tr069_connreq.proto='tcp'
+			uci set firewall.tr069_connreq.dest_port="$CONN_REQ_PORT"
+			for ip in $CONN_REQ_ALLOWED; do
+				uci add_list firewall.tr069_connreq.src_ip="$ip"
+			done
+			uci set firewall.tr069_connreq.target='ACCEPT'
+		fi
+	fi
+
+	if [ "$FW_DIRTY" -eq 1 ]; then
+		uci commit firewall || fail "Failed to commit firewall config"
+	fi
+}
+
+append_custom_param() {
+	local sec="$1"
+	local path val
+	config_get path "$sec" path
+	config_get val "$sec" value
+	[ -n "$path" ] && json_add_string "$path" "$val"
+}
+
+append_download_mapping() {
+	local sec="$1"
+	local pat ftype ver
+	config_get pat "$sec" pattern
+	config_get ftype "$sec" file_type
+	config_get ver "$sec" target_version
+	[ -n "$pat" ] && [ -n "$ver" ] || return 0
+	json_add_object ""
+	json_add_string pattern "$pat"
+	json_add_string file_type "$ftype"
+	json_add_string target_version "$ver"
+	json_close_object
+}
+
+write_runtime_json() {
+	local tmp
+	tmp="$(mktemp /tmp/tr069-fake-runtime.XXXXXX)" || fail "Cannot create runtime json temp file"
+
+	json_init
+	json_add_boolean enabled "$ENABLED"
+	json_add_boolean omci_sync "$OMCI_SYNC"
+	json_add_string pon_line "$PON_LINE"
+	json_add_string uplink "$UPLINK"
+	[ -n "$EFF_VLAN" ] && json_add_int vlan_id "$EFF_VLAN"
+	json_add_string tr069_ifname "${TR069_IFNAME:-tr069-if}"
+	json_add_string macaddr "$EFF_MAC"
+	json_add_string option60 "$OPTION60"
+	json_add_string ipv4_mode "$IPV4_MODE"
+	json_add_string ipv6_mode "$IPV6_MODE"
+	json_add_string acs_url "$EFF_ACS_URL"
+	json_add_string acs_username "$EFF_ACS_USER"
+	json_add_string acs_password "$EFF_ACS_PASS"
+	json_add_boolean insecure_tls "$INSECURE_TLS"
+	json_add_boolean periodic_inform_enable "$PERIODIC_EN"
+	json_add_int periodic_inform_interval "${PERIODIC_INT:-43200}"
+	json_add_boolean conn_req_enable "$CONN_REQ_EN"
+	json_add_int conn_req_port "${CONN_REQ_PORT:-7547}"
+	json_add_string conn_req_path "${CONN_REQ_PATH:-/tr069}"
+	json_add_string conn_req_username "$CONN_REQ_USER"
+	json_add_string conn_req_password "$CONN_REQ_PASS"
+	[ -n "$MANUFACTURER" ] && json_add_string manufacturer "$MANUFACTURER"
+	[ -n "$OUI" ] && json_add_string oui "$OUI"
+	[ -n "$PRODUCT_CLASS" ] && json_add_string product_class "$PRODUCT_CLASS"
+	[ -n "$SERIAL_NUMBER" ] && json_add_string serial_number "$SERIAL_NUMBER"
+	[ -n "$HW_VER" ] && json_add_string hardware_version "$HW_VER"
+	[ -n "$SW_VER" ] && json_add_string software_version "$SW_VER"
+	json_add_string state_dir "/etc/tr069-fake"
+	json_add_string audit_log_path "/tmp/tr069-fake.log"
+
+	json_add_object custom_params
+	config_foreach append_custom_param custom_param
+	json_close_object
+
+	json_add_array download_mappings
+	config_foreach append_download_mapping download_map
+	json_close_array
+
+	json_dump > "$tmp"
+	chmod 0600 "$tmp"
+	mv -f "$tmp" "$RUNTIME_JSON"
+}
+
+reload_subsystems() {
+	if [ "$FW_DIRTY" -eq 1 ] && [ -x /etc/init.d/firewall ]; then
+		/etc/init.d/firewall reload >/dev/null 2>&1 || true
+	fi
+	if [ "$NET_DIRTY" -eq 1 ]; then
+		ubus call network reload >/dev/null 2>&1 || true
+	fi
+}
+
+load_config
+apply_network
+apply_firewall
+write_runtime_json
+reload_subsystems
+exit 0
