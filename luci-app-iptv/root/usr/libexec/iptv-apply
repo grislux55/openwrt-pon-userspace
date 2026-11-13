@@ -182,7 +182,7 @@ EOF
 	}
 
 	chain forward {
-		type filter hook forward priority filter; policy accept;
+		type filter hook forward priority filter - 10; policy accept;
 
 		# The bridge hook sees every bridge; this match scopes the service filter.
 		meta ibrname "br-iptv" jump iptv_forward
