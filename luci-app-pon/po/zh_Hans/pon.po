@@ -1034,3 +1034,21 @@ msgstr "下载全量 UBI 备份（.tar.gz）"
 
 msgid "Archives bosa, ri, fip, ubootenv and ubootenv2 (read-only, excluding bl2) with SHA-256 MANIFEST.txt. If any volume is missing or unreadable, available volumes are still included with a warning."
 msgstr "打包导出 bosa、ri、fip、ubootenv 和 ubootenv2（只读，不含 bl2）及 SHA-256 校验清单 MANIFEST.txt；若部分卷缺失或读取失败，仍可下载已成功读取的数据并提示警告。"
+
+msgid "PON registration state (kernel: pon0-registration)"
+msgstr "PON 注册状态 (内核: pon0-registration)"
+
+msgid "Blinks fast during discovery, blinks slowly while ranging, and stays lit once O5 or MPCP registration completes."
+msgstr "发现阶段快闪，测距阶段慢闪，完成 O5 或 MPCP 注册后常亮。"
+
+msgid "PON optical signal loss (kernel: pon0-los)"
+msgstr "PON 光信号丢失告警 (内核: pon0-los)"
+
+msgid "Blinks when PON optical signal loss (LOS) is detected and stays off while optical signal is present."
+msgstr "检测到 PON 光信号丢失（LOS）时闪烁告警，光信号正常时保持熄灭。"
+
+msgid "PON service online (kernel: pon0-online)"
+msgstr "PON 业务就绪 (内核: pon0-online)"
+
+msgid "Lights up when the PON line has optical signal and the data path is ready for service."
+msgstr "当 PON 光信号正常且数据通道就绪承载业务时常亮。"
