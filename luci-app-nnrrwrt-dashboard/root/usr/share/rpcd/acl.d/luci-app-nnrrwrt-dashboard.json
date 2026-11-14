@@ -1,0 +1,12 @@
+{
+	"luci-app-nnrrwrt-dashboard": {
+		"description": "Grant read-only access to NNRRWrt optical gateway dashboard telemetry",
+		"read": {
+			"ubus": {
+				"luci.nnrrwrt_dashboard": [ "get_telemetry" ],
+				"system": [ "board", "info" ],
+				"network.interface": [ "dump" ]
+			}
+		}
+	}
+}

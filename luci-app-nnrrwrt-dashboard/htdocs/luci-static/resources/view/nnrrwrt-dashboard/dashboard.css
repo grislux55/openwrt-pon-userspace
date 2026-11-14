@@ -1,0 +1,996 @@
+.nnrrwrt-dash {
+	--nd-surface: var(--surface-color, #ffffff);
+	--nd-surface-muted: var(--surface-muted, #f3f6fa);
+	--nd-surface-inset: var(--surface-inset, #edf1f7);
+	--nd-border: var(--border-color, #dde3ec);
+	--nd-text-strong: var(--text-strong, #182232);
+	--nd-text: var(--text-color, #3b485c);
+	--nd-muted: var(--muted-text, #64748b);
+	--nd-rx: var(--link-color, var(--primary, #2563eb));
+	--nd-tx: #0f766e;
+	--nd-ok: #15803d;
+	--nd-warn: #b45309;
+	--nd-crit: #dc2626;
+	--nd-focus: var(--focus-ring, #3b82f6);
+	--nd-sans: "Google Sans", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei UI", system-ui, -apple-system, sans-serif;
+	--nd-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, "Liberation Mono", Menlo, monospace;
+	display: flex;
+	flex-direction: column;
+	gap: 1.125rem;
+	padding-bottom: 1.5rem;
+	font-family: var(--nd-sans);
+	color: var(--nd-text);
+	font-variant-numeric: tabular-nums;
+}
+
+:root[data-argon-mode="dark"] .nnrrwrt-dash,
+:root[data-darkmode="true"] .nnrrwrt-dash {
+	--nd-tx: #2dd4bf;
+	--nd-ok: #34d399;
+	--nd-warn: #fbbf24;
+	--nd-crit: #f87171;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-argon-mode="light"]):not([data-argon-mode="dark"]) .nnrrwrt-dash {
+		--nd-tx: #2dd4bf;
+		--nd-ok: #34d399;
+		--nd-warn: #fbbf24;
+		--nd-crit: #f87171;
+	}
+}
+
+/* Hardware Chassis Faceplate */
+.nnrrwrt-chassis {
+	background: linear-gradient(180deg, #161c27 0%, #0f141e 100%);
+	color: #e5ebf3;
+	border: 1px solid #283346;
+	border-radius: 12px;
+	box-shadow: 0 10px 26px rgba(9, 13, 22, 0.2);
+	overflow: hidden;
+}
+
+.nnrrwrt-chassis-top {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.875rem 1.25rem;
+	padding: 1rem 1.25rem;
+	border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.nnrrwrt-identity {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: 0;
+}
+
+.nnrrwrt-identity-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.625rem;
+}
+
+.nnrrwrt-dash .nnrrwrt-hostname {
+	margin: 0;
+	width: auto;
+	font-size: 1.25rem;
+	font-weight: 600;
+	line-height: 1.25;
+	color: #f8fafc !important;
+	background: transparent !important;
+	padding: 0 !important;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
+}
+
+.nnrrwrt-model-tag {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.125rem 0.5rem;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: #cbd5e1;
+	background: rgba(148, 163, 184, 0.14);
+	border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.nnrrwrt-meta-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.375rem 1rem;
+	font-size: 0.8125rem;
+	color: #94a3b8;
+}
+
+.nnrrwrt-meta-item strong {
+	color: #dbe4f0;
+	font-weight: 500;
+}
+
+.nnrrwrt-chassis-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+/* Front-panel LED strip */
+.nnrrwrt-led-strip {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.45rem 0.7rem;
+	border-radius: 6px;
+	background: rgba(8, 11, 17, 0.55);
+	border: 1px solid rgba(148, 163, 184, 0.16);
+	text-decoration: none !important;
+	color: #cbd5e1 !important;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.nnrrwrt-led-strip:hover {
+	background: rgba(15, 21, 32, 0.78);
+	border-color: rgba(148, 163, 184, 0.42);
+}
+
+.nnrrwrt-dash .nnrrwrt-pause-btn {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	height: auto;
+	min-height: 0;
+	padding: 0.42rem 0.68rem;
+	border-radius: 6px;
+	background: rgba(15, 21, 32, 0.65);
+	border: 1px solid rgba(148, 163, 184, 0.22);
+	box-shadow: none;
+	color: #cbd5e1;
+	font-family: inherit;
+	font-size: 0.75rem;
+	font-weight: 500;
+	line-height: 1.2;
+	white-space: nowrap;
+	cursor: pointer;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.nnrrwrt-dash .nnrrwrt-pause-btn:hover {
+	background: rgba(30, 41, 59, 0.75);
+	border-color: rgba(148, 163, 184, 0.45);
+	color: #f8fafc;
+}
+
+.nnrrwrt-dash .nnrrwrt-pause-btn.is-paused {
+	border-color: rgba(245, 158, 11, 0.55);
+	color: #fde68a;
+}
+
+.nnrrwrt-live-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #22c55e;
+}
+
+.nnrrwrt-pause-btn.is-paused .nnrrwrt-live-dot {
+	background: #f59e0b;
+}
+
+.nnrrwrt-led-strip:focus-visible,
+.nnrrwrt-pause-btn:focus-visible,
+.nnrrwrt-port-btn:focus-visible,
+.nnrrwrt-svc-item:focus-visible,
+.nnrrwrt-panel-link:focus-visible,
+.nnrrwrt-inspector-link:focus-visible {
+	outline: 2px solid var(--nd-focus);
+	outline-offset: 2px;
+}
+
+.nnrrwrt-led-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	font-size: 0.7rem;
+	font-weight: 500;
+	color: #94a3b8;
+}
+
+.nnrrwrt-led-pill.is-lit {
+	color: #e2e8f0;
+}
+
+.nnrrwrt-led-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #334155;
+	box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.nnrrwrt-led-dot.is-green {
+	background: #22c55e;
+	box-shadow: 0 0 7px rgba(34, 197, 94, 0.85);
+}
+
+.nnrrwrt-led-dot.is-red {
+	background: #ef4444;
+	box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
+}
+
+.nnrrwrt-led-dot.is-amber {
+	background: #f59e0b;
+	box-shadow: 0 0 7px rgba(245, 158, 11, 0.85);
+}
+
+/* Physical Ports Deck */
+.nnrrwrt-port-bay {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+	gap: 0.625rem;
+	padding: 1rem 1.25rem;
+}
+
+.nnrrwrt-dash .nnrrwrt-port-btn {
+	appearance: none;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.45rem;
+	height: auto;
+	min-height: 0;
+	padding: 0.65rem 0.7rem;
+	border-radius: 6px;
+	background: #1c2433;
+	border: 1px solid #2d394f;
+	box-shadow: none;
+	color: #e2e8f0;
+	font-family: inherit;
+	line-height: 1.3;
+	text-align: left;
+	cursor: pointer;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.nnrrwrt-dash .nnrrwrt-port-btn:hover {
+	background: #222c3f;
+	border-color: #47597a;
+}
+
+.nnrrwrt-dash .nnrrwrt-port-btn.is-selected {
+	background: #222f46;
+	border-color: #60a5fa;
+}
+
+.nnrrwrt-port-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.35rem;
+}
+
+.nnrrwrt-port-name {
+	font-size: 0.78rem;
+	font-weight: 600;
+	color: #f1f5f9;
+}
+
+.nnrrwrt-port-lamp {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #3b475c;
+}
+
+.nnrrwrt-port-lamp.is-fast {
+	background: #22c55e;
+	box-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
+}
+
+.nnrrwrt-port-lamp.is-optical {
+	background: #2dd4bf;
+	box-shadow: 0 0 7px rgba(45, 212, 191, 0.85);
+}
+
+.nnrrwrt-port-lamp.is-slow {
+	background: #f59e0b;
+	box-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
+}
+
+.nnrrwrt-port-lamp.is-fault {
+	background: #ef4444;
+	box-shadow: 0 0 7px rgba(239, 68, 68, 0.85);
+}
+
+/* Connector Socket Silhouette */
+.nnrrwrt-jack {
+	position: relative;
+	height: 30px;
+	border-radius: 4px;
+	background: #0d121b;
+	border: 1px solid #334155;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.nnrrwrt-jack.is-sc-apc {
+	border-color: #15803d;
+	background: linear-gradient(180deg, #0a1f16 0%, #091510 100%);
+}
+
+.nnrrwrt-jack.is-usb {
+	border-color: #2563eb;
+}
+
+.nnrrwrt-jack-pins {
+	display: flex;
+	gap: 2px;
+	align-items: flex-start;
+}
+
+.nnrrwrt-jack-pins span {
+	width: 2px;
+	height: 9px;
+	background: #64748b;
+	border-radius: 1px;
+}
+
+.nnrrwrt-port-btn.is-up .nnrrwrt-jack-pins span {
+	background: #eab308;
+}
+
+.nnrrwrt-jack-ferrule {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	border: 2px solid #22c55e;
+	background: radial-gradient(circle, #34d399 20%, transparent 65%);
+}
+
+.nnrrwrt-port-btn:not(.is-up) .nnrrwrt-jack-ferrule {
+	border-color: #475569;
+	background: transparent;
+}
+
+.nnrrwrt-jack-usb-bar {
+	width: 26px;
+	height: 6px;
+	border-radius: 1px;
+	background: #1d4ed8;
+}
+
+.nnrrwrt-port-btn:not(.is-up) .nnrrwrt-jack-usb-bar {
+	background: #334155;
+}
+
+.nnrrwrt-port-speed {
+	font-size: 0.78rem;
+	font-weight: 600;
+	color: #cbd5e1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.nnrrwrt-port-btn:not(.is-up) .nnrrwrt-port-speed {
+	color: #64748b;
+	font-weight: 500;
+}
+
+.nnrrwrt-port-rate {
+	font-size: 0.7rem;
+	color: #94a3b8;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Selected Port Inspector Bar */
+.nnrrwrt-port-inspector {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem 1.25rem;
+	padding: 0.65rem 1.25rem;
+	background: rgba(9, 13, 21, 0.65);
+	border-top: 1px solid rgba(148, 163, 184, 0.14);
+	font-size: 0.78rem;
+	color: #cbd5e1;
+}
+
+.nnrrwrt-inspector-stats {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.4rem 1.15rem;
+}
+
+.nnrrwrt-inspector-code {
+	font-family: var(--nd-mono);
+	font-size: 0.75rem;
+	color: #93c5fd;
+}
+
+.nnrrwrt-inspector-link {
+	color: #93c5fd !important;
+	font-weight: 500;
+	text-decoration: none !important;
+}
+
+.nnrrwrt-inspector-link:hover {
+	text-decoration: underline !important;
+}
+
+/* Two-Column Telemetry Bands */
+.nnrrwrt-band {
+	display: grid;
+	gap: 1.125rem;
+}
+
+.nnrrwrt-band-top {
+	grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+
+.nnrrwrt-band-bottom {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1024px) {
+	.nnrrwrt-band-top,
+	.nnrrwrt-band-bottom {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.nnrrwrt-panel {
+	background: var(--nd-surface);
+	border: 1px solid var(--nd-border);
+	border-radius: 8px;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.nnrrwrt-panel-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	padding: 0.9rem 1.15rem;
+	border-bottom: 1px solid var(--nd-border);
+}
+
+.nnrrwrt-dash .nnrrwrt-panel-title {
+	margin: 0;
+	width: auto;
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: 0.95rem;
+	font-weight: 600;
+	line-height: 1.35;
+	color: var(--nd-text-strong) !important;
+	background: transparent !important;
+	padding: 0 !important;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	text-wrap: balance;
+}
+
+.nnrrwrt-panel-link {
+	font-size: 0.8rem;
+	font-weight: 500;
+	color: var(--nd-rx) !important;
+	text-decoration: none !important;
+}
+
+.nnrrwrt-panel-link:hover {
+	text-decoration: underline !important;
+}
+
+.nnrrwrt-panel-body {
+	padding: 1rem 1.15rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	flex: 1;
+}
+
+/* Throughput Scope */
+.nnrrwrt-rates-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 0.75rem 1.5rem;
+}
+
+.nnrrwrt-rate-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.5rem;
+}
+
+.nnrrwrt-rate-item {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+}
+
+.nnrrwrt-rate-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	font-size: 0.78rem;
+	color: var(--nd-muted);
+}
+
+.nnrrwrt-swatch {
+	width: 9px;
+	height: 3px;
+	border-radius: 2px;
+}
+
+.nnrrwrt-swatch.is-rx {
+	background: var(--nd-rx);
+}
+
+.nnrrwrt-swatch.is-tx {
+	background: var(--nd-tx);
+}
+
+.nnrrwrt-rate-val {
+	font-size: 1.35rem;
+	font-weight: 600;
+	line-height: 1.2;
+	color: var(--nd-text-strong);
+}
+
+.nnrrwrt-rate-sub {
+	font-size: 0.75rem;
+	color: var(--nd-muted);
+}
+
+.nnrrwrt-scope-wrap {
+	position: relative;
+	background: var(--nd-surface-muted);
+	border: 1px solid var(--nd-border);
+	border-radius: 8px;
+	padding: 0.5rem 0.65rem 0.35rem;
+}
+
+.nnrrwrt-scope-ceil {
+	position: absolute;
+	top: 0.35rem;
+	right: 0.6rem;
+	font-size: 0.7rem;
+	color: var(--nd-muted);
+	pointer-events: none;
+}
+
+.nnrrwrt-scope-svg {
+	display: block;
+	width: 100%;
+	height: 132px;
+}
+
+/* Key-Value Grid inside Panels */
+.nnrrwrt-kv-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.65rem 1rem;
+	padding-top: 0.85rem;
+	border-top: 1px solid var(--nd-border);
+}
+
+@media (max-width: 560px) {
+	.nnrrwrt-kv-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.nnrrwrt-kv {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	min-width: 0;
+}
+
+.nnrrwrt-kv-label {
+	font-size: 0.75rem;
+	color: var(--nd-muted);
+}
+
+.nnrrwrt-kv-val {
+	font-size: 0.84rem;
+	font-weight: 500;
+	color: var(--nd-text-strong);
+	overflow-wrap: anywhere;
+}
+
+.nnrrwrt-kv-val.is-mono {
+	font-family: var(--nd-mono);
+	font-size: 0.8rem;
+}
+
+/* Optical Power Window Meter & Divided Strip (no nested cards) */
+.nnrrwrt-optics-metrics {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	padding-bottom: 0.85rem;
+	border-bottom: 1px solid var(--nd-border);
+}
+
+.nnrrwrt-optic-stat {
+	padding: 0.1rem 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	min-width: 0;
+}
+
+.nnrrwrt-optic-stat:first-child {
+	padding-inline-start: 0;
+}
+
+.nnrrwrt-optic-stat:last-child {
+	padding-inline-end: 0;
+}
+
+.nnrrwrt-optic-stat + .nnrrwrt-optic-stat {
+	border-inline-start: 1px solid var(--nd-border);
+}
+
+.nnrrwrt-optic-num {
+	font-size: 1.15rem;
+	font-weight: 600;
+	color: var(--nd-text-strong);
+}
+
+.nnrrwrt-optic-num.is-ok {
+	color: var(--nd-ok);
+}
+
+.nnrrwrt-optic-num.is-warn {
+	color: var(--nd-warn);
+}
+
+.nnrrwrt-optic-num.is-crit {
+	color: var(--nd-crit);
+}
+
+@media (max-width: 560px) {
+	.nnrrwrt-optic-stat {
+		padding: 0.1rem 0.45rem;
+	}
+
+	.nnrrwrt-optic-num {
+		font-size: 0.98rem;
+	}
+}
+
+.nnrrwrt-window-meter {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.nnrrwrt-window-track {
+	position: relative;
+	height: 10px;
+	border-radius: 5px;
+	background: linear-gradient(
+		90deg,
+		rgba(220, 38, 38, 0.45) 0%,
+		rgba(217, 119, 6, 0.45) 11%,
+		rgba(22, 163, 74, 0.5) 18%,
+		rgba(22, 163, 74, 0.5) 85%,
+		rgba(217, 119, 6, 0.45) 93%,
+		rgba(220, 38, 38, 0.45) 100%
+	);
+	border: 1px solid var(--nd-border);
+}
+
+.nnrrwrt-window-marker {
+	position: absolute;
+	top: -4px;
+	width: 4px;
+	height: 16px;
+	border-radius: 2px;
+	background: var(--nd-text-strong);
+	box-shadow: 0 0 0 2px var(--nd-surface);
+	transform: translateX(-50%);
+}
+
+.nnrrwrt-window-scale {
+	display: flex;
+	justify-content: space-between;
+	font-size: 0.7rem;
+	color: var(--nd-muted);
+}
+
+/* Status Badges */
+.nnrrwrt-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.15rem 0.55rem;
+	border-radius: 999px;
+	font-size: 0.74rem;
+	font-weight: 500;
+	background: var(--nd-surface-muted);
+	border: 1px solid var(--nd-border);
+	color: var(--nd-text);
+}
+
+.nnrrwrt-badge.is-ok {
+	color: var(--nd-ok);
+	border-color: color-mix(in srgb, var(--nd-ok) 35%, var(--nd-border));
+}
+
+.nnrrwrt-badge.is-warn {
+	color: var(--nd-warn);
+	border-color: color-mix(in srgb, var(--nd-warn) 35%, var(--nd-border));
+}
+
+.nnrrwrt-badge.is-crit {
+	color: var(--nd-crit);
+	border-color: color-mix(in srgb, var(--nd-crit) 35%, var(--nd-border));
+}
+
+/* PPE & Silicon Resource Bars */
+.nnrrwrt-ppe-box {
+	padding-bottom: 0.85rem;
+	border-bottom: 1px solid var(--nd-border);
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+}
+
+.nnrrwrt-ppe-top {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+.nnrrwrt-ppe-count {
+	font-size: 1.2rem;
+	font-weight: 600;
+	color: var(--nd-text-strong);
+}
+
+.nnrrwrt-chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+
+.nnrrwrt-chip {
+	font-size: 0.73rem;
+	padding: 0.12rem 0.48rem;
+	border-radius: 4px;
+	background: var(--nd-surface-muted);
+	border: 1px solid var(--nd-border);
+	color: var(--nd-text);
+}
+
+.nnrrwrt-chip.is-active {
+	color: var(--nd-ok);
+	border-color: color-mix(in srgb, var(--nd-ok) 35%, var(--nd-border));
+}
+
+.nnrrwrt-meter-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.8rem;
+}
+
+.nnrrwrt-meter {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+
+.nnrrwrt-meter-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+}
+
+.nnrrwrt-meter-title {
+	font-weight: 500;
+	color: var(--nd-text-strong);
+}
+
+.nnrrwrt-meter-val {
+	color: var(--nd-muted);
+	font-size: 0.76rem;
+}
+
+.nnrrwrt-bar-track {
+	position: relative;
+	height: 7px;
+	border-radius: 4px;
+	background: var(--nd-surface-inset);
+	overflow: hidden;
+}
+
+.nnrrwrt-bar-fill {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	background: var(--nd-rx);
+	transform-origin: left center;
+	transform: scaleX(var(--nd-scale, 0));
+	transition: transform 220ms ease;
+}
+
+.nnrrwrt-bar-fill.is-secondary {
+	background: color-mix(in srgb, var(--nd-rx) 30%, transparent);
+}
+
+.nnrrwrt-bar-fill.is-teal {
+	background: var(--nd-tx);
+}
+
+.nnrrwrt-bar-fill.is-warn {
+	background: var(--nd-warn);
+}
+
+.nnrrwrt-bar-fill.is-crit {
+	background: var(--nd-crit);
+}
+
+.nnrrwrt-cores-row {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 0.45rem;
+	margin-top: 0.15rem;
+}
+
+.nnrrwrt-core-cell {
+	font-size: 0.7rem;
+	color: var(--nd-muted);
+	display: flex;
+	justify-content: space-between;
+	padding: 0.15rem 0.25rem;
+	border-bottom: 1px solid var(--nd-border);
+}
+
+/* Services Runtime Directory */
+.nnrrwrt-svc-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.55rem;
+}
+
+@media (max-width: 560px) {
+	.nnrrwrt-svc-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.nnrrwrt-svc-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	padding: 0.6rem 0.75rem;
+	border-radius: 6px;
+	background: var(--nd-surface-muted);
+	border: 1px solid var(--nd-border);
+	text-decoration: none !important;
+	color: var(--nd-text) !important;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.nnrrwrt-svc-item:hover {
+	border-color: var(--nd-rx);
+	background: var(--nd-surface);
+}
+
+.nnrrwrt-svc-left {
+	display: flex;
+	align-items: center;
+	gap: 0.55rem;
+	min-width: 0;
+}
+
+.nnrrwrt-svc-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	background: #94a3b8;
+}
+
+.nnrrwrt-svc-dot.is-running,
+.nnrrwrt-svc-dot.is-active {
+	background: var(--nd-ok);
+	box-shadow: 0 0 6px color-mix(in srgb, var(--nd-ok) 65%, transparent);
+}
+
+.nnrrwrt-svc-dot.is-stopped {
+	background: var(--nd-warn);
+}
+
+.nnrrwrt-svc-name {
+	font-size: 0.83rem;
+	font-weight: 500;
+	color: var(--nd-text-strong);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.nnrrwrt-svc-state {
+	font-size: 0.73rem;
+	color: var(--nd-muted);
+	white-space: nowrap;
+}
+
+.nnrrwrt-svc-state.is-running,
+.nnrrwrt-svc-state.is-active {
+	color: var(--nd-ok);
+	font-weight: 500;
+}
+
+.nnrrwrt-svc-note {
+	font-size: 0.76rem;
+	color: var(--nd-muted);
+	margin-top: auto;
+	padding-top: 0.5rem;
+	border-top: 1px solid var(--nd-border);
+}
+
+.nnrrwrt-empty-state {
+	padding: 0.85rem 0.95rem;
+	border-radius: 6px;
+	background: var(--nd-surface-muted);
+	border: 1px solid var(--nd-border);
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+	font-size: 0.82rem;
+	color: var(--nd-text);
+	max-width: 65ch;
+}
+
+.nnrrwrt-live-status {
+	font-size: 0.78rem;
+	color: var(--nd-warn);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.nnrrwrt-led-strip,
+	.nnrrwrt-pause-btn,
+	.nnrrwrt-port-btn,
+	.nnrrwrt-bar-fill,
+	.nnrrwrt-svc-item {
+		transition: none !important;
+	}
+}

@@ -1,0 +1,317 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-app-nnrrwrt-dashboard\n"
+"PO-Revision-Date: 2026-11-14 12:00+0800\n"
+"Last-Translator: grislux55 <jebchou.hg@gmail.com>\n"
+"Language: zh_Hans\n"
+"Language-Team: Chinese (Simplified)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Dashboard"
+msgstr "仪表盘"
+
+msgid "Grant read-only access to NNRRWrt optical gateway dashboard telemetry"
+msgstr "授予对 NNRRWrt 光网关仪表盘遥测数据的只读访问权限"
+
+msgid "d"
+msgstr "天"
+
+msgid "h"
+msgstr "小时"
+
+msgid "m"
+msgstr "分"
+
+msgid "s"
+msgstr "秒"
+
+msgid "Link up"
+msgstr "已连接"
+
+msgid "Unconfigured"
+msgstr "未配置"
+
+msgid "Unavailable"
+msgstr "不可用"
+
+msgid "Loss of signal (LOS)"
+msgstr "光信号丢失 (LOS)"
+
+msgid "MPCP registered"
+msgstr "MPCP 已注册"
+
+msgid "Registration denied"
+msgstr "注册被拒绝"
+
+msgid "Registering…"
+msgstr "正在注册…"
+
+msgid "Operational"
+msgstr "运行正常"
+
+msgid "Synchronizing…"
+msgstr "正在同步…"
+
+msgid "No optical carrier detected on SC/APC input"
+msgstr "SC/APC 光口未检测到输入光信号"
+
+msgid "Critical attenuation (below -30 dBm)"
+msgstr "光衰过大（低于 -30 dBm）"
+
+msgid "Marginal low power (-30 to -27 dBm)"
+msgstr "接收光功率偏低（-30 至 -27 dBm）"
+
+msgid "Optimal receive window (-27 to -8 dBm)"
+msgstr "处于最佳收光区间（-27 至 -8 dBm）"
+
+msgid "High input power (-8 to -6 dBm); consider attenuator"
+msgstr "收光偏强（-8 至 -6 dBm），建议加装光衰器"
+
+msgid "Optical overload risk (above -6 dBm); add attenuator"
+msgstr "收光过载风险（高于 -6 dBm），请加装光衰器"
+
+msgid "WAN optical uplink"
+msgstr "WAN 光口上联"
+
+msgid "WAN routed uplink"
+msgstr "WAN 路由上联"
+
+msgid "Optical bridge / L2 trunk"
+msgstr "光猫桥接 / 二层透传"
+
+msgid "LAN / relay port"
+msgstr "LAN / 旁路中继端口"
+
+msgid "On"
+msgstr "亮起"
+
+msgid "Off"
+msgstr "熄灭"
+
+msgid "Resume updates"
+msgstr "恢复刷新"
+
+msgid "Pause updates"
+msgstr "暂停刷新"
+
+msgid "Unplugged"
+msgstr "未插线"
+
+msgid "No signal"
+msgstr "无光信号"
+
+msgid "Empty slot"
+msgstr "未插入设备"
+
+msgid "Firmware"
+msgstr "固件"
+
+msgid "Kernel"
+msgstr "内核"
+
+msgid "Uptime"
+msgstr "运行时间"
+
+msgid "Thermal"
+msgstr "温度"
+
+msgid "Configure front-panel LEDs"
+msgstr "配置前面板指示灯"
+
+msgid "No USB peripheral attached"
+msgstr "未挂载 USB 外设"
+
+msgid "Mount points"
+msgstr "挂载点"
+
+msgid "Link down"
+msgstr "未连接"
+
+msgid "Interface up"
+msgstr "接口已启用"
+
+msgid "Full duplex"
+msgstr "全双工"
+
+msgid "Half duplex"
+msgstr "半双工"
+
+msgid "PON diagnostics"
+msgstr "光路详情"
+
+msgid "Network interfaces"
+msgstr "网络接口"
+
+msgid "Downstream"
+msgstr "下行速率"
+
+msgid "Upstream"
+msgstr "上行速率"
+
+msgid "Not connected"
+msgstr "未拨号 / 无地址"
+
+msgid "No global IPv6 lease"
+msgstr "未获取公网 IPv6"
+
+msgid "Local / relay"
+msgstr "本地 / 中继模式"
+
+msgid "Upstream Throughput & Session"
+msgstr "上联吞吐与网络会话"
+
+msgid "Manage interfaces"
+msgstr "管理接口"
+
+msgid "Total"
+msgstr "累计"
+
+msgid "Optical uplink"
+msgstr "光纤上联"
+
+msgid "Scale"
+msgstr "量程"
+
+msgid "WAN IPv4"
+msgstr "WAN IPv4"
+
+msgid "WAN IPv6 & Prefix"
+msgstr "WAN IPv6 与前缀"
+
+msgid "DNS & Session Uptime"
+msgstr "DNS 与会话时长"
+
+msgid "LAN Gateway & Conntrack"
+msgstr "LAN 网关与连接数"
+
+msgid "10G PON Optical Transceiver"
+msgstr "10G PON 光模块与注册状态"
+
+msgid "Configure PON"
+msgstr "配置 PON"
+
+msgid "PON telemetry is not active"
+msgstr "暂未采集到 PON 光路状态"
+
+msgid "Check fiber insertion on the SC/APC port or verify the line mode in PON configuration."
+msgstr "请检查 SC/APC 光纤插头是否插紧，或在 PON 配置页核对线路制式。"
+
+msgid "Channel online"
+msgstr "管理通道在线"
+
+msgid "Waiting for OLT"
+msgstr "等待 OLT 交互"
+
+msgid "Untagged / transparent"
+msgstr "无标签 / 透传"
+
+msgid "All VLANs trunked"
+msgstr "全 VLAN 透传"
+
+msgid "Rx Optical Power"
+msgstr "接收光功率 (Rx)"
+
+msgid "Tx Optical Power"
+msgstr "发射光功率 (Tx)"
+
+msgid "BOSA Laser"
+msgstr "BOSA 光组件"
+
+msgid "Mode & Registration"
+msgstr "制式与注册状态"
+
+msgid "OMCI / OAM Auth"
+msgstr "OMCI / OAM 认证"
+
+msgid "OLT Peer & Sync"
+msgstr "OLT 局端与同步"
+
+msgid "Service VLANs"
+msgstr "业务 VLAN"
+
+msgid "bound"
+msgstr "条硬件绑定"
+
+msgid "entries"
+msgstr "条流表项"
+
+msgid "PPE flow offload enabled"
+msgstr "PPE 硬件流卸载已启用"
+
+msgid "Software forwarding"
+msgstr "软件转发"
+
+msgid "Flow table stats inactive"
+msgstr "流表统计未启用"
+
+msgid "Load"
+msgstr "负载"
+
+msgid "UBI bosa/ri/fip verified"
+msgstr "UBI 关键分区完好"
+
+msgid "Check UBI: "
+msgstr "请检查 UBI 卷："
+
+msgid "AN7581 Silicon & Hardware Offload"
+msgstr "AN7581 硬件卸载与系统资源"
+
+msgid "Calibration & UBI backup"
+msgstr "校准与分区备份"
+
+msgid "PPE HW Offload"
+msgstr "PPE 硬件卸载"
+
+msgid "SW Flow Offload"
+msgstr "软件流量卸载"
+
+msgid "Offload disabled"
+msgstr "流卸载已关闭"
+
+msgid "Packet Steering"
+msgstr "多核包调度"
+
+msgid "CPU Utilization"
+msgstr "CPU 占用率"
+
+msgid "Memory"
+msgstr "运行内存"
+
+msgid "Storage"
+msgstr "存储空间"
+
+msgid "Standby (0 proc)"
+msgstr "待机（无进程）"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Active"
+msgstr "已启用"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "LED Configuration"
+msgstr "LED 指示灯配置"
+
+msgid "Service Runtime & Navigation"
+msgstr "常驻服务与功能导航"
+
+msgid "Manage startup"
+msgstr "管理启动项"
+
+msgid "active"
+msgstr "项启用"
+
+msgid "on standby without background processes"
+msgstr "项按需待机（零后台进程）"
+
+msgid "Unconfigured services such as Tailscale and DDNS stay in zero-process standby until enabled."
+msgstr "Tailscale 与 DDNS 等可选组件在未配置时保持零后台进程待机，配置启用后自动拉起。"
+
+msgid "Telemetry refresh failed; retrying automatically…"
+msgstr "状态刷新失败，正在自动重试…"

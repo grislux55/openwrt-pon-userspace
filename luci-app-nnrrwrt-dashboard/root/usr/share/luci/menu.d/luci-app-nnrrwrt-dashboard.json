@@ -1,0 +1,13 @@
+{
+	"admin/dashboard": {
+		"title": "Dashboard",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "nnrrwrt-dashboard/index"
+		},
+		"depends": {
+			"acl": [ "luci-app-nnrrwrt-dashboard" ]
+		}
+	}
+}
