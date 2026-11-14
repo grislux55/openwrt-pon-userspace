@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2021"
 license = "GPL-2.0-only"
 description = "Multi-instance PON control utility for Airoha OpenWrt targets"
-repository = "https://github.com/grislux55/openwrt-pon-userspace"
+repository = "https://github.com/grislux55/nnrrwrt-packages"
 
 [[bin]]
 name = "ponctl"

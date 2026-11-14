@@ -5,7 +5,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=airoha-tr069-fake
 PKG_VERSION:=0.1.0
 PKG_RELEASE:=1
-PKG_URL:=https://github.com/grislux55/openwrt-pon-userspace/tree/main/airoha-tr069-fake
+PKG_URL:=https://github.com/grislux55/nnrrwrt-packages/tree/main/airoha-tr069-fake
 PKG_MAINTAINER:=grislux55 <jebchou.hg@gmail.com>
 
 PKG_LICENSE:=GPL-2.0-only

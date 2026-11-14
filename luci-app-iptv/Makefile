@@ -3,7 +3,7 @@
 include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=LuCI IPTV bridge configuration
-LUCI_URL:=https://github.com/grislux55/openwrt-pon-userspace/tree/main/luci-app-iptv
+LUCI_URL:=https://github.com/grislux55/nnrrwrt-packages/tree/main/luci-app-iptv
 LUCI_DEPENDS:=+luci-base +firewall4 +kmod-nft-bridge
 LUCI_PKGARCH:=all
 

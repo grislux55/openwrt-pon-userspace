@@ -12,7 +12,7 @@ use netlink::LineMode;
 const NET_CLASS: &str = "/sys/class/net";
 const ARPHRD_NONE: &str = "65534";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const PROJECT_URL: &str = "https://github.com/grislux55/openwrt-pon-userspace/tree/main/airoha-ponctl";
+const PROJECT_URL: &str = "https://github.com/grislux55/nnrrwrt-packages/tree/main/airoha-ponctl";
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 

@@ -3,7 +3,7 @@
 include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=LuCI TR-069 Fake sandbox configuration
-LUCI_URL:=https://github.com/grislux55/openwrt-pon-userspace/tree/main/luci-app-tr069-fake
+LUCI_URL:=https://github.com/grislux55/nnrrwrt-packages/tree/main/luci-app-tr069-fake
 LUCI_DEPENDS:=+luci-base +airoha-tr069-fake
 LUCI_PKGARCH:=all
 

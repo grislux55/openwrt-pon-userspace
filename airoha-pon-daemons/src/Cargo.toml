@@ -3,7 +3,7 @@ name = "airoha-pon-daemons"
 version = "0.3.0"
 edition = "2021"
 license = "GPL-2.0-only"
-repository = "https://github.com/grislux55/openwrt-pon-userspace"
+repository = "https://github.com/grislux55/nnrrwrt-packages"
 description = "Userspace OMCI and OAM agent for Airoha PON devices"
 autobins = false
 

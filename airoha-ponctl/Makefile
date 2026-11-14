@@ -5,7 +5,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=airoha-ponctl
 PKG_VERSION:=0.2.0
 PKG_RELEASE:=1
-PKG_URL:=https://github.com/grislux55/openwrt-pon-userspace/tree/main/airoha-ponctl
+PKG_URL:=https://github.com/grislux55/nnrrwrt-packages/tree/main/airoha-ponctl
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_BUILD_DEPENDS:=rust/host

@@ -329,7 +329,7 @@ return view.extend({
 
 		m = new form.Map('pon', _('PON'),
 			_('Project source:') +
-			' <a href="https://github.com/grislux55/openwrt-pon-userspace/tree/main/luci-app-pon" target="_blank" rel="noreferrer noopener">openwrt-pon-userspace/luci-app-pon</a>');
+			' <a href="https://github.com/grislux55/nnrrwrt-packages/tree/main/luci-app-pon" target="_blank" rel="noreferrer noopener">nnrrwrt-packages/luci-app-pon</a>');
 		m.readonly = !L.hasViewPermission();
 
 		s = m.section(form.TypedSection, 'xpon', _('PON line'));

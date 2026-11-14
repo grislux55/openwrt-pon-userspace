@@ -11,7 +11,7 @@ use crate::{oam, omci};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const PROJECT_URL: &str =
-    "https://github.com/grislux55/openwrt-pon-userspace/tree/main/airoha-pon-daemons";
+    "https://github.com/grislux55/nnrrwrt-packages/tree/main/airoha-pon-daemons";
 
 enum Protocol {
     Omci,
